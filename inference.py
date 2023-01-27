@@ -8,6 +8,7 @@ from numpyro import optim
 from numpyro.infer import SVI, Trace_ELBO
 from numpyro.infer.autoguide import AutoDelta, AutoNormal
 
+import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
