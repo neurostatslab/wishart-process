@@ -55,7 +55,7 @@ def visualize_pc(
         )
         
         draw_ellipse(
-            means[j].mean(0),covs[j],colors[j],
+            means[j].mean(0)[:2],covs[j][:2,:2],colors[j],
             std_devs=std,line_width=1
         )
 
@@ -85,6 +85,7 @@ def plot_loss(loss,error=None,xlabel='',ylabel='',titlestr='',colors=None,legend
     
     for i in range(len(loss)):
         plt.plot(loss[i],color=colors[i],linewidth=linewidth)
+        plt.yscale('log') 
         if error is not None:
             plt.fill_between(np.arange(len(loss[i])), loss[i]-error[i], loss[i]+error[i], color=colors[i], alpha=.1)
 
@@ -95,10 +96,26 @@ def plot_loss(loss,error=None,xlabel='',ylabel='',titlestr='',colors=None,legend
     
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
+
     
     if legends is not None:
         plt.legend(legends,fontsize=fontsize)
     plt.title(titlestr,fontsize=fontsize)
+    
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+
+
+# %%
+def plot_box(performance,fontsize=10,save=False,file=None):
+
+    plt.boxplot(performance.values())
+    plt.xticks(np.arange(1,1+len(performance)),list(performance.keys()),fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
     
     if save:
         plt.savefig(file+'.png',format='png')

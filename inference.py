@@ -24,7 +24,7 @@ class Variational:
         self.posterior = svi_result.params
 
 
-class VariationalDetla(Variational):
+class VariationalDelta(Variational):
     def __init__(self,model):
         self.guide = AutoDelta(model)
         self.model = model
