@@ -13,144 +13,141 @@ from jax import vmap
 
 # %%
 class WishartProcess:
-    """PROTOTYPE FOR WISHART PROCESS INFERENCE
-    - Wilson & Ghahramani (2010). Generalised Wishart Processes.
-    https://arxiv.org/abs/1101.0240
-    """
-
     def __init__(self, kernel, nu, V):
-        """
-        Parameters
-        ----------
-        kernel : function
-            Positive definite kernel function.
-        nu : int
-            Degrees of freedom parameter.
-        V : positive definite matrix
-            Scale parameter.
-        """
         self.kernel = kernel
         self.nu = nu
-        self.L = jnp.linalg.cholesky(V)
-        self.num_dims = self.L.shape[0]
+        self.num_dims = V.shape[0]
+        self.L = jnp.linalg.cholesky(V/self.num_dims)
 
-    def evaluate_kernel(self, xs):
-        return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(xs)
+    def evaluate_kernel(self, xs, ys):
+        return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(ys)
 
-    def sample(self, key, xs):
-        """
-        Draws a sample from the prior.
-        Parameters
-        ----------
-        key : jax.random.PRNGKey
-            PRNG key used as the random key for jax.
-        xs : array
-            Array of input inputs where `xs.shape[0]`
-            corresponds to the number of observations
-            and `xs.shape[1:]` corresponds to the
-            dimensions accepted by the kernel function.
-        """
-        num_obs = xs.shape[0]
-        
-        # TODO: make this more efficient
-        K = self.evaluate_kernel(xs)
+    def sample(self, x):
+        N = x.shape[0]
 
+        L = numpyro.param('L', self.L)
 
-        # Sample Gaussian process
-        U = jax.random.multivariate_normal(
-            key, jnp.zeros(num_obs), K,
-            shape=(self.num_dims, self.nu)
+        c_f = self.evaluate_kernel(x,x)
+
+        F = numpyro.sample(
+            'F',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f),
+            sample_shape=(self.num_dims,self.nu)
         )
 
-        # Compute covariance
+        fft = jnp.einsum('abn,cbn->acn',F,F)
+        afft = jnp.einsum('ab,bcn->acn',L,fft) 
+        sigma = jnp.einsum('abn,bc->nac',afft,L.T) 
+
+        return sigma
+
+    
+    def posterior(self, X, Y, x):
+        K_X_x  = self.evaluate_kernel(x,X)
+        K_x_x  = self.evaluate_kernel(x,x)
+        K_X_X  = self.evaluate_kernel(X,X)
+
+        Ki   = jnp.linalg.inv(K_X_X)
+        f = jnp.einsum('ij,jmn->mni',(K_X_x.T@Ki),Y)
+        K = K_x_x - K_X_x.T@Ki@K_X_x
+
+        F = numpyro.sample(
+            'F_test',dist.MultivariateNormal(f,covariance_matrix=jnp.eye(len(K))),
+            sample_shape=(1,1)
+        ).squeeze()
+        print(F.shape)
+
         return jnp.einsum(
-            "ai,ijk,ljk,bl->abk", self.L, U, U, self.L
+            "ai,ijk,ljk,bl->kab", self.L, F, F, self.L
         )
+
 
 # %%
 class GaussianProcess:
     def __init__(self, kernel, num_dims):
-        """
-        Parameters
-        ----------
-        kernel : function
-            Positive definite kernel function.
-        nu : int
-            Degrees of freedom parameter.
-        V : positive definite matrix
-            Scale parameter.
-        """
         self.kernel = kernel
         self.num_dims = num_dims
 
 
-    def evaluate_kernel(self, xs):
-        return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(xs)
+    def evaluate_kernel(self, xs, ys):
+        return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(ys)
 
 
-    def sample(self, key, xs):
-        """
-        Draws a sample from the prior.
-        Parameters
-        ----------
-        key : jax.random.PRNGKey
-            PRNG key used as the random key for jax.
-        xs : array
-            Array of input inputs where `xs.shape[0]`
-            corresponds to the number of observations
-            and `xs.shape[1:]` corresponds to the
-            dimensions accepted by the kernel function.
-        """
-        num_obs = xs.shape[0]
+    def sample(self, x):
+        N = x.shape[0]
+        c_g = self.evaluate_kernel(x,x)
+        G = numpyro.sample(
+            'G',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_g),
+            sample_shape=(self.num_dims,1)
+        ).squeeze().T
+        return G
+    
+    def posterior(self, X, Y, x):
+        K_X_x  = self.evaluate_kernel(x,X)
+        K_x_x  = self.evaluate_kernel(x,x)
+        K_X_X  = self.evaluate_kernel(X,X)
         
-        # TODO: make this more efficient
-        K = self.evaluate_kernel(xs)
+        Ki   = jnp.linalg.inv(K_X_X)
+        f = jnp.einsum('ij,jm->mi',(K_X_x.T@Ki),Y)
+        
+        K = K_x_x - K_X_x.T@Ki@K_X_x
 
-        # Sample Gaussian process
-        f = jax.random.multivariate_normal(
-            key, jnp.zeros(num_obs), K,
-            shape=(self.num_dims, 1)
-        )
-
-        # Compute covariance
-        return f
+        G_new = numpyro.sample(
+            'G_test',dist.MultivariateNormal(f,covariance_matrix=jnp.eye(len(K))),
+            sample_shape=(1,1)
+        ).squeeze().T
+        
+        return G_new
     
 # %%
-class ConditionalLikelihood:
-    def __init__(self,mu,sigma):
-        self.mu = mu
-        self.sigma = sigma
-
-    def sample(self,keys,num_samples=1):
-        Y = jnp.stack([jax.random.multivariate_normal(
-            keys[i], self.mu[:,0,i], self.sigma[:,:,i],
-            shape=(num_samples,1)
-        ) for i in range(self.mu.shape[-1])],0).astype(float)[:,:,0].transpose(1,0,2)
+class NormalConditionalLikelihood:
+    def sample(self,mu,sigma,ind=None,y=None):
+        Y = numpyro.sample(
+            'y',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),
+            obs=y
+        )
         return Y
     
+# %%
+class PoissonConditionalLikelihood:
+    def __init__(self,rate):
+        self.rate = rate
+
+    def sample(self,mu,sigma,ind=None,y=None):
+        rate = numpyro.param('rate', self.rate)
+
+        G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
+        
+        Y = numpyro.sample('y',dist.Poisson(jnp.exp(G[ind,...])*rate[None]).to_event(1),obs=y)
+        
+        return Y
 
 # %%
-class NormalGaussianWishartProcess:
-    def __init__(self, gp, wp):
+class JointGaussianWishartProcess:
+    def __init__(self, gp, wp, likelihood):
         self.gp = gp
         self.wp = wp
+        self.likelihood = likelihood
 
     def model(self, x, y):
         B,N,D = y.shape
 
-        L = numpyro.param('L', self.wp.L) # self.wp.L 
-
-        c_f = self.wp.evaluate_kernel(x)
-        c_g = self.gp.evaluate_kernel(x)
-
-        F = numpyro.sample('F',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f),sample_shape=(D,self.wp.nu))
-        G = numpyro.sample('G',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_g),sample_shape=(D,1)).squeeze().T
-
-        fft = jnp.einsum('abn,cbn->acn',F,F)
-        afft = jnp.einsum('ab,bcn->acn',L,fft) # self.wp.L
-        sigma = jnp.einsum('abn,bc->nac',afft,L.T) # self.wp.L.T
+        sigma = self.wp.sample(x)
+        G = self.gp.sample(x)
 
         with numpyro.plate('obs', N) as ind:
-            numpyro.sample('y',dist.MultivariateNormal(G[ind,...],sigma[ind,...]),obs=y)
+            self.likelihood.sample(G,sigma,ind,y=y)
         return
-    
+
+# %%
+class NormalGaussianWishartPosterior:
+    def __init__(self, joint, posterior, x):
+        self.joint = joint
+        self.posterior = posterior
+        self.x = x
+
+    def sample(self, x):
+        F,G,_ = self.posterior.sample()
+        mu = self.joint.gp.posterior(self.x, G, x)
+        sigma = self.joint.wp.posterior(self.x, F, x) 
+
+        return mu, sigma

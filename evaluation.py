@@ -14,15 +14,21 @@ from sklearn.covariance import EmpiricalCovariance
 def compare(y):
     result = {}
 
-    result['lw'] = jnp.stack([
-        LedoitWolf().fit(y[:,i,:]).covariance_ for i in range(y.shape[1])
-    ], axis=-1)
-    result['lasso'] = jnp.stack([
-        GraphicalLasso().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
-    ], axis=-1)
-    result['empirical'] = jnp.stack([
-        EmpiricalCovariance().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
-    ], axis=-1)
+    try:
+        result['lw'] = jnp.stack([
+            LedoitWolf().fit(y[:,i,:]).covariance_ for i in range(y.shape[1])
+        ], axis=-1)
+    except: pass
+    try:
+        result['lasso'] = jnp.stack([
+            GraphicalLasso().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
+        ], axis=-1)
+    except: pass
+    try:
+        result['empirical'] = jnp.stack([
+            EmpiricalCovariance().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
+        ], axis=-1)
+    except: pass
 
     return result
 

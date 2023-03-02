@@ -10,6 +10,10 @@ import numpy as np
 import scipy as sp
 
 from scipy import stats
+
+from matplotlib.axes._axes import _log as matplotlib_axes_logger
+matplotlib_axes_logger.setLevel('ERROR')
+
 # %%
 def draw_ellipse(mean,covariance,colors,std_devs=3,ax=None,line_width=2):
     '''sample grid that covers the range of points'''
@@ -20,7 +24,9 @@ def draw_ellipse(mean,covariance,colors,std_devs=3,ax=None,line_width=2):
     y = np.linspace(min_p[1],max_p[1],256)
     X,Y = np.meshgrid(x,y)
     
-    Z = multivariate_normal.pdf(np.stack((X.reshape(-1),Y.reshape(-1))).T, mean=mean, cov=(std_devs**2)*covariance)
+    Z = multivariate_normal.pdf(
+        np.stack((X.reshape(-1),Y.reshape(-1))).T, 
+        mean=mean, cov=(std_devs**2)*covariance, allow_singular=True)
     Z = Z.reshape([len(x),len(y)])
     
     if ax is None:
@@ -63,7 +69,7 @@ def visualize_pc(
         plt.scatter(pc[:,0],pc[:,1])
 
     
-    plt.axis('equal')
+    # plt.axis('equal')
 
     if lim is not None:
         plt.xlim(lim)

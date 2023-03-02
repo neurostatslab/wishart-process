@@ -11,86 +11,68 @@ import jax.numpy as jnp
 import jax
 from numpyro import optim
 import evaluation
+import numpyro
 
+%load_ext autoreload
+%autoreload 2
 
 # %% Make a fake dataset
 N = 20  # time points
-D = 3
-seed = 0
+D = 2
+seed = 1
 num_samples = 20
 
-rng = [-100,100]
-key = jax.random.PRNGKey(seed)
+rng = [-10,10]
 
 x = jnp.linspace(rng[0], rng[1], N)
-sigma_m = 50.
-sigma_c = 100.
+sigma_m = 10.
+sigma_c = 10.
 
 # Prior
-kernel_gp = lambda x, y: 1e4*(1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2)))
+kernel_gp = lambda x, y: 1e1*(1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2)))
 kernel_wp = lambda x, y: 1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_c**2))
 
 gp = models.GaussianProcess(kernel=kernel_gp,num_dims=D)
-wp = models.WishartProcess(kernel=kernel_wp,nu=D+1,V=1e2*jnp.eye(D))
+wp = models.WishartProcess(kernel=kernel_wp,nu=D+1,V=1e-2*jnp.eye(D))
 
 # Likelihood
-key, _key = jax.random.split(key)
-mu = gp.sample(_key, x)
+likelihood = models.NormalConditionalLikelihood()
 
-key, _key = jax.random.split(key)
-sigma = wp.sample(_key, x)
+with numpyro.handlers.seed(rng_seed=seed):
+    mu = gp.sample(x)
+    sigma = wp.sample(x)
+    y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(num_samples)])
 
-keys = jax.random.split(key, N+1)
-key = keys[0]
-y = models.ConditionalLikelihood(mu,sigma).sample(keys[1:],num_samples=num_samples)
-
-print(y.shape)
 visualizations.visualize_pc(
-    mu.transpose(2,1,0),sigma.transpose(2,0,1),pc=y.reshape(y.shape[0]*y.shape[1],-1),
-    save=False,file='../results/true'
+    mu[:,None],sigma,pc=y.reshape(y.shape[0]*y.shape[1],-1)
 )
 
 # %% Joint
-
-# vwp = models.NormalGaussianWishartProcess(gp,wp) # true joint
-# Model misspecification
-sigma_empirical = jnp.stack([jnp.cov(y[:,i,:].T) for i in range(y.shape[1])]).mean(0)
-gp_ = models.GaussianProcess(
-    kernel=lambda x, y: 1e10*(1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2))),num_dims=D
-)
-wp_ = models.WishartProcess(
-    kernel=lambda x, y: 1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_c**2)),
-    nu=2*D,V=wp.L.T@wp.L
-)
-vwp_ = models.NormalGaussianWishartProcess(gp_,wp_) 
+joint = models.JointGaussianWishartProcess(gp,wp,likelihood) 
 
 # %% Inference
-# varfam = inference.VariationalDelta(vwp_.model)
-varfam = inference.VariationalNormal(vwp_.model)
+varfam = inference.VariationalNormal(joint.model)
 
 adam = optim.Adam(1e-1)
-key, _key = jax.random.split(key)
-varfam.infer(adam,x,y,n_iter=20000,key=_key)
+key = jax.random.PRNGKey(seed)
+varfam.infer(adam,x,y,n_iter=20000,key=key)
 
 # %% Visualization
 visualizations.plot_loss(
     [varfam.losses],xlabel='Iteration',ylabel='ELBO',titlestr='Training Loss',colors=['k'],
-    save=False,file='../results/losses'
 )
 
 # %%
-key, _key = jax.random.split(key)
-mu_hat,sigma_hat = varfam.sample(key=_key)
+with numpyro.handlers.seed(rng_seed=seed):
+    _,mu_hat,sigma_hat = varfam.sample()
 
 visualizations.visualize_pc(
-    mu_hat.transpose(2,1,0),sigma_hat.transpose(2,0,1),pc=y.reshape(y.shape[0]*y.shape[1],-1),
-        save=False,file='../results/inferred'+str(i)
+    mu_hat[:,None],sigma_hat,pc=y.reshape(y.shape[0]*y.shape[1],-1)
 )
-
 # %% Evaluation
 
 compared = evaluation.compare(y)
-compared['wishart'] = sigma_hat
-performance = evaluation.evaluate(compared,sigma)
+compared['wishart'] = sigma_hat.transpose(1,2,0)
+performance = evaluation.evaluate(compared,sigma.transpose(1,2,0))
 
 visualizations.plot_box(performance)
