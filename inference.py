@@ -14,9 +14,9 @@ import numpyro.distributions as dist
 import numpyro
 # %%
 class Variational:
-    def infer(self,optim,x,y,n_iter=10000,key=jax.random.PRNGKey(0)):
+    def infer(self,optim,x,y,n_iter=10000,key=jax.random.PRNGKey(0),num_particles=1):
         svi = SVI(
-            self.model, self.guide, optim, Trace_ELBO()
+            self.model, self.guide, optim, Trace_ELBO(num_particles=num_particles)
         )
         svi_result = svi.run(key, n_iter, x, y)
 
