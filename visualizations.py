@@ -6,6 +6,8 @@
 from scipy.stats import multivariate_normal
 import matplotlib.pyplot as plt
 
+from sklearn.decomposition import PCA
+
 import numpy as np
 import scipy as sp
 
@@ -41,6 +43,19 @@ def visualize_pc(
     ):
     '''Visualize point clouds and atlases learned from them
     '''
+
+    if means.shape[2] > 2:
+        pca = PCA(n_components=2)
+        pca.fit_transform(np.vstack(means))
+
+        if pc is not None:
+            pc = pca.transform(pc)
+        
+        means = [pca.transform(means[i]) for i in range(len(means))]
+        covs = [pca.components_@covs[i]@pca.components_.T for i in range(len(means))]
+            
+            
+
     fig = plt.figure(figsize=(15,8))
     plt.title(title_str)
 

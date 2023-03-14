@@ -59,8 +59,13 @@ class WishartProcess:
         return jnp.einsum(
             "ai,ijk,ljk,bl->kab", self.L, F, F, self.L
         )
-
-
+    
+    def log_prob(self, x, F):
+        # TODO: input to this fn must be sigma, not F
+        N = x.shape[0]
+        c_f = self.evaluate_kernel(x,x)
+        LPF = dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f).log_prob(F)
+        return LPF
 # %%
 class GaussianProcess:
     def __init__(self, kernel, num_dims):
@@ -98,6 +103,24 @@ class GaussianProcess:
         
         return G_new
     
+    def log_prob(self, x, G):
+        N = x.shape[0]
+        c_g = self.evaluate_kernel(x,x)
+        LPG = dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_g).log_prob(G)
+        return LPG
+
+# %% 
+class NeuralTuningProcess:
+    def __init__(self, num_dims, spread):
+        self.num_dims = num_dims
+        self.spread = spread
+    def sample(self, x):
+        # TODO
+        # generate num_dims random phases
+        # generate cosine response curves with the given spread
+        pass
+
+
 # %%
 class NormalConditionalLikelihood:
     def sample(self,mu,sigma,ind=None,y=None):
@@ -106,6 +129,10 @@ class NormalConditionalLikelihood:
             obs=y
         )
         return Y
+    
+    def log_prob(self,Y,mu,sigma,ind=None):
+        LPY = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(y)
+        return LPY
     
 # %%
 class PoissonConditionalLikelihood:
@@ -116,10 +143,17 @@ class PoissonConditionalLikelihood:
         rate = numpyro.param('rate', self.rate)
 
         G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
-        
-        Y = numpyro.sample('y',dist.Poisson(jnp.exp(G[ind,...])*rate[None]).to_event(1),obs=y)
+        Y = numpyro.sample('y',dist.Poisson(jax.nn.softplus(G[ind,...]+rate[None])).to_event(1),obs=y)
         
         return Y
+    
+    def log_prob(self,G,Y,mu,sigma,ind=None):
+        # TODO: sample from G, the input to this fn must be only Y
+        LPG = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(G)
+        LPY = dist.Poisson(jax.nn.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y)
+        
+        return LPG + LPY
+    
 
 # %%
 class JointGaussianWishartProcess:
@@ -137,6 +171,17 @@ class JointGaussianWishartProcess:
         with numpyro.plate('obs', N) as ind:
             self.likelihood.sample(G,sigma,ind,y=y)
         return
+    
+    def log_prob(self, sigma, G, x, y):
+        B,N,D = y.shape
+
+        LPW = self.wp.log_prob(sigma)
+        LPG = self.gp.log_prob(x,G)
+
+        with numpyro.plate('obs', N) as ind:
+            LPL = self.likelihood.log_prob(y,G,sigma,ind)
+
+        return LPW + LPG + LPL
 
 # %%
 class NormalGaussianWishartPosterior:
@@ -151,3 +196,11 @@ class NormalGaussianWishartPosterior:
         sigma = self.joint.wp.posterior(self.x, F, x) 
 
         return mu, sigma
+    
+    def log_prob(self,mu,sigma,x,y):
+        LPG = self.joint.gp.log_prob(x,mu)
+        LPW = self.joint.wp.log_prob(x,sigma)
+        LPL = self.joint.likelihood.log_prob(y,mu,sigma)
+
+        return LPG+LPW+LPL
+

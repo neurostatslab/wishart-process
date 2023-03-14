@@ -13,8 +13,8 @@ from numpyro import optim
 import evaluation
 import numpyro
 
-%load_ext autoreload
-%autoreload 2
+# %load_ext autoreload
+# %autoreload 2
 
 # %% Make a fake dataset
 N = 20  # time points
