@@ -54,9 +54,8 @@ class WishartProcess:
             'F_test',dist.MultivariateNormal(f,covariance_matrix=jnp.eye(len(K))),
             sample_shape=(1,1)
         ).squeeze()
-        print(F.shape)
 
-        return jnp.einsum(
+        return F.transpose(2,0,1), jnp.einsum(
             "ai,ijk,ljk,bl->kab", self.L, F, F, self.L
         )
     
@@ -131,7 +130,7 @@ class NormalConditionalLikelihood:
         return Y
     
     def log_prob(self,Y,mu,sigma,ind=None):
-        LPY = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(y)
+        LPY = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(Y)
         return LPY
     
 # %%
@@ -172,16 +171,16 @@ class JointGaussianWishartProcess:
             self.likelihood.sample(G,sigma,ind,y=y)
         return
     
-    def log_prob(self, sigma, G, x, y):
+    def log_prob(self, G, F, sigma, x, y):
         B,N,D = y.shape
 
-        LPW = self.wp.log_prob(sigma)
-        LPG = self.gp.log_prob(x,G)
+        LPW = self.wp.log_prob(x,F.transpose(1,2,0))
+        LPG = self.gp.log_prob(x,G.T)
 
         with numpyro.plate('obs', N) as ind:
             LPL = self.likelihood.log_prob(y,G,sigma,ind)
 
-        return LPW + LPG + LPL
+        return LPW.sum() + LPG.sum() + LPL.sum()
 
 # %%
 class NormalGaussianWishartPosterior:
@@ -193,14 +192,21 @@ class NormalGaussianWishartPosterior:
     def sample(self, x):
         F,G,_ = self.posterior.sample()
         mu = self.joint.gp.posterior(self.x, G, x)
-        sigma = self.joint.wp.posterior(self.x, F, x) 
+        F_, sigma = self.joint.wp.posterior(self.x, F, x) 
 
-        return mu, sigma
+        return mu, sigma, F_
     
-    def log_prob(self,mu,sigma,x,y):
-        LPG = self.joint.gp.log_prob(x,mu)
-        LPW = self.joint.wp.log_prob(x,sigma)
-        LPL = self.joint.likelihood.log_prob(y,mu,sigma)
+    def log_prob(self,x,y,n_samples=10):
+        # TODO: we need to exponentiate log_prob before summing!
+        '''returns monte carlo estimate of log posterior predictive
+        '''
+        LPL = []
+        for i in range(n_samples):
+            F,G,_ = self.posterior.sample()
+            mu = self.joint.gp.posterior(self.x, G, x)
+            _, sigma = self.joint.wp.posterior(self.x, F, x) 
+            lpl = self.joint.likelihood.log_prob(y,mu,sigma)
+            LPL.append(lpl)
 
-        return LPG+LPW+LPL
+        return jnp.stack(LPL)
 
