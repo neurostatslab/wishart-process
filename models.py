@@ -116,14 +116,18 @@ class GaussianProcess:
 
 # %% 
 class NeuralTuningProcess:
-    def __init__(self, num_dims, spread):
+    def __init__(self, num_dims, spread, amp):
         self.num_dims = num_dims
         self.spread = spread
+        self.amp = amp
+
     def sample(self, x):
         # TODO
         # generate num_dims random phases
         # generate cosine response curves with the given spread
-        pass
+        p = numpyro.sample('phase', dist.Uniform(),sample_shape=(self.num_dims,))
+        return self.amp*jnp.cos(((jnp.pi*x[:,None]/360.)-(p[None])*jnp.pi)/self.spread)
+        
 
 
 # %%

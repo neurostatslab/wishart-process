@@ -45,11 +45,14 @@ def visualize_pc(
     '''
 
     if means.shape[2] > 2:
-        pca = PCA(n_components=2)
-        pca.fit_transform(np.vstack(means))
-
         if pc is not None:
+            pca = PCA(n_components=2)
+            pca.fit_transform(pc)
             pc = pca.transform(pc)
+        else:
+            pca = PCA(n_components=2)
+            pca.fit_transform(np.vstack(means))
+            
         
         means = [pca.transform(means[i]) for i in range(len(means))]
         covs = [pca.components_@covs[i]@pca.components_.T for i in range(len(means))]
@@ -137,6 +140,22 @@ def plot_box(performance,titlestr='',fontsize=10,save=False,file=None):
     plt.boxplot(performance.values())
     plt.xticks(np.arange(1,1+len(performance)),list(performance.keys()),fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
+    plt.title(titlestr,fontsize=fontsize)
+    
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+
+# %%
+
+def plot_tuning(x,y,lw=2,titlestr='',fontsize=10,save=False,file=None):
+    plt.plot(x,y,lw=lw)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+
     plt.title(titlestr,fontsize=fontsize)
     
     if save:
