@@ -41,7 +41,10 @@ class WishartProcess:
         return sigma
 
     
-    def posterior(self, X, Y, x):
+    def posterior(self, X, Y, sigma, x):
+        # TODO: If x is a subset of X, return that subset of Y
+        if jnp.array_equal(X,x): return Y, sigma
+
         K_X_x  = self.evaluate_kernel(x,X)
         K_x_x  = self.evaluate_kernel(x,x)
         K_X_X  = self.evaluate_kernel(X,X)
@@ -86,6 +89,9 @@ class GaussianProcess:
         return G
     
     def posterior(self, X, Y, x):
+        # TODO: If x is a subset of X, return that subset of Y
+        if jnp.array_equal(X,x): return Y
+
         K_X_x  = self.evaluate_kernel(x,X)
         K_x_x  = self.evaluate_kernel(x,x)
         K_X_X  = self.evaluate_kernel(X,X)
@@ -190,23 +196,25 @@ class NormalGaussianWishartPosterior:
         self.x = x
 
     def sample(self, x):
-        F,G,_ = self.posterior.sample()
-        mu = self.joint.gp.posterior(self.x, G, x)
-        F_, sigma = self.joint.wp.posterior(self.x, F, x) 
+        F,G,sigma = self.posterior.sample()
+        mu_ = self.joint.gp.posterior(self.x, G, x)
+        F_, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x) 
 
-        return mu, sigma, F_
+        return mu_, sigma_, F_
     
-    def log_prob(self,x,y,n_samples=10):
+    def log_prob(self,x,y,vi_samples=10,gp_samples=1):
         # TODO: we need to exponentiate log_prob before summing!
         '''returns monte carlo estimate of log posterior predictive
         '''
         LPL = []
-        for i in range(n_samples):
-            F,G,_ = self.posterior.sample()
-            mu = self.joint.gp.posterior(self.x, G, x)
-            _, sigma = self.joint.wp.posterior(self.x, F, x) 
-            lpl = self.joint.likelihood.log_prob(y,mu,sigma)
-            LPL.append(lpl)
+        for i in range(vi_samples):
+            F,G,sigma = self.posterior.sample()
+            for j in range(gp_samples):
+                mu_ = self.joint.gp.posterior(self.x, G, x)
+                _, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x) 
+                lpl = self.joint.likelihood.log_prob(y,mu_,sigma_)
+                LPL.append(lpl)
 
-        return jnp.stack(LPL)
+        LPP = jax.nn.logsumexp(jnp.stack(LPL),axis=0)
+        return LPP
 

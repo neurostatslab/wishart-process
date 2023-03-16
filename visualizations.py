@@ -132,11 +132,12 @@ def plot_loss(loss,error=None,xlabel='',ylabel='',titlestr='',colors=None,legend
 
 
 # %%
-def plot_box(performance,fontsize=10,save=False,file=None):
+def plot_box(performance,titlestr='',fontsize=10,save=False,file=None):
 
     plt.boxplot(performance.values())
     plt.xticks(np.arange(1,1+len(performance)),list(performance.keys()),fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
+    plt.title(titlestr,fontsize=fontsize)
     
     if save:
         plt.savefig(file+'.png',format='png')
