@@ -17,7 +17,9 @@ class WishartProcess:
         self.kernel = kernel
         self.nu = nu
         self.num_dims = V.shape[0]
-        self.L = jnp.linalg.cholesky(V/self.num_dims)
+        # Wishart mean is V/nu
+        self.L = jnp.linalg.cholesky(V/nu)
+
 
     def evaluate_kernel(self, xs, ys):
         return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(ys)
@@ -122,7 +124,6 @@ class NeuralTuningProcess:
         self.amp = amp
 
     def sample(self, x):
-        # TODO
         # generate num_dims random phases
         # generate cosine response curves with the given spread
         p = numpyro.sample('phase', dist.Uniform(),sample_shape=(self.num_dims,))

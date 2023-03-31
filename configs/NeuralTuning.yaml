@@ -1,0 +1,38 @@
+dataset_params:
+  name: NeuralTuningProcessLoader
+  epsilon: 0.1
+  spread: 0.5
+  amp: 5
+  train_prop: 0.8
+
+model_params:
+  seed: 0
+
+  gp_kernel:
+    - x1:
+      type: RBF
+      diag: 0.0001
+      scale: 10
+      sigma: 5
+
+  wp_kernel:
+    - x1: 
+      type: RBF
+      diag: 0.0001
+      scale: 10
+      sigma: 5
+      nu: 10
+
+variational_params:
+  guide: Normal
+  num_particles: 10
+
+  optimizer:
+    type: adam
+    step_size: 0.1
+
+visualization_params:
+  - plot_tuning
+  - visualize_pc
+  - plot_loss
+  - plot_box

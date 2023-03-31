@@ -5,7 +5,7 @@
 
 # %% Inference
 from numpyro import optim
-from numpyro.infer import SVI, Trace_ELBO
+from numpyro.infer import SVI, Trace_ELBO, init_to_value
 from numpyro.infer.autoguide import AutoDelta, AutoNormal
 
 import jax
@@ -25,9 +25,11 @@ class Variational:
 
 
 class VariationalDelta(Variational):
-    def __init__(self,model):
-        self.guide = AutoDelta(model)
+    def __init__(self,model,init=None):
+        self.guide = AutoDelta(model) if init is None else AutoDelta(model,init_loc_fn=init_to_value(values=init))
         self.model = model
+
+
         
     def sample(self):
         L = self.posterior['L']
@@ -38,8 +40,8 @@ class VariationalDelta(Variational):
         return F.transpose(2,0,1),mu.squeeze().T,sigma.transpose(2,0,1)
     
 class VariationalNormal(Variational):
-    def __init__(self,model):
-        self.guide = AutoNormal(model)
+    def __init__(self,model,init=None):
+        self.guide = AutoNormal(model) if init is None else AutoNormal(model,init_loc_fn=init_to_value(values=init))
         self.model = model
 
     def sample(self):
