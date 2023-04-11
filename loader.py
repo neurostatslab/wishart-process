@@ -8,15 +8,33 @@ import jax
 import jax.numpy as jnp
 import numpyro
 
+from functools import reduce, partial
 
 from labrepo.datasets.allen_brain_observatory import AllenBrainData
 
 import models
 
-def get_kernel(kernel,params):
-    if kernel == 'periodic': return lambda x, y: params['scale']*(params['diag']*(x==y)+jnp.exp(-2*jnp.sin(jnp.pi*jnp.abs(x-y)/360.)**2/(params['sigma']**2))),
-    if kernel == 'RBF': return lambda x, y: params['scale']*(params['diag']*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*params['sigma']**2)))
+# %%
+def get_kernel(params):
+    '''Returns the full kernel of multi-dimensional condition spaces
+    '''
+    if len(params) > 1: 
+        return lambda x,y: reduce(
+            lambda a,b: a*b, [
+                _get_kernel(params[i]['type'],params[i])(x[i],y[i]) for i in range(len(params))
+            ]
+        )
+    else: 
+        return lambda x,y: _get_kernel(params[0]['type'],params[0])(x,y)
+        
 
+def _get_kernel(kernel,params):
+    '''Private function, returns the kernel corresponding to a single dimension
+    '''
+    if kernel == 'periodic': 
+        return lambda x,y: params['scale']*(params['diag']*(x==y)+jnp.exp(-2*jnp.sin(jnp.pi*jnp.abs(x-y)/360.)**2/(params['sigma']**2)))
+    if kernel == 'RBF': 
+        return lambda x,y: params['scale']*(params['diag']*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*params['sigma']**2)))
 
 # %%
 class AllenStaticGratingsLoader:
@@ -35,32 +53,48 @@ class AllenStaticGratingsLoader:
 
         n_trials = min([c.shape[1] for c in counts])
 
-        self.y = jnp.array([counts[i][:,:n_trials] for i in range(len(counts)) 
-            if eval(params['selector'])
+        
+        y = jnp.array([counts[i][:,:n_trials] for i in range(len(counts)) 
+            if eval(params['selector'],{'conditions':conditions, 'i':i})
         ]).transpose(2,0,1)
 
-        self.x = jnp.array([list(conditions[i].values()) for i in range(len(counts)) 
-            if eval(params['selector'])
+        x = jnp.array([list(conditions[i].values()) for i in range(len(counts)) 
+            if eval(params['selector'],{'conditions':conditions, 'i':i})
         ])
+        # x_test = (x[-1]+(x[-1]-x[-2]))[None]
+
+        y_test = {}
+        num_train = int(n_trials*params['train_prop'])
+        y_test['x'] = y[num_train:]
+        y = y[:num_train]
+
+        self.x = x
+        self.y = y
+        
+        # self.x_test = x_test
+        self.y_test = y_test
+
+        self.mu = y.mean(0)
+        self.sigma = jnp.array([jnp.cov(y[:,c].T) for c in range(y.shape[1])])
 
     def load_data(self):
         return self.x, self.y
     
     def load_test_data(self):
-        return self.x, self.y
+        return None, self.y_test
 # %%
 class NeuralTuningProcessLoader:
     def __init__(self,params):
         x = jnp.linspace(0,360,params['M'],endpoint=False)
-        x_test = x[[0,len(x)//2]+1]
+        x_test = jnp.take(x,jnp.array([0,len(x)//2+1]))
         x = jnp.setdiff1d(x,x_test)
 
         # %% Prior
-        kernel_wp = get_kernel(params['kernel_gp'])
+        wp_kernel = get_kernel(params['wp_kernel'])
         V = params['epsilon']*jnp.eye(params['D'])
 
         nt = models.NeuralTuningProcess(num_dims=params['D'],spread=params['spread'],amp=params['amp'])
-        wp = models.WishartProcess(kernel=kernel_wp,nu=2*params['D'],V=V)
+        wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V)
 
         # %% Likelihood
         likelihood = models.NormalConditionalLikelihood()

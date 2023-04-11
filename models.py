@@ -219,7 +219,7 @@ class NormalGaussianWishartPosterior:
                 _, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x) 
                 lpl = self.joint.likelihood.log_prob(y,mu_,sigma_)
                 LPL.append(lpl)
-
-        LPP = jax.nn.logsumexp(jnp.stack(LPL),axis=0)
+        
+        LPP = jax.nn.logsumexp(jnp.stack(LPL),axis=0) - jnp.log(vi_samples)
         return LPP
 

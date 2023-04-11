@@ -12,8 +12,16 @@ import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 import numpyro
+
+
 # %%
 class Variational:
+    
+    def load(self, file):
+        result = jnp.load(file,allow_pickle=True).item()
+        self.losses = result['losses']
+        self.posterior = result['posterior']
+
     def infer(self,optim,x,y,n_iter=10000,key=jax.random.PRNGKey(0),num_particles=1):
         svi = SVI(
             self.model, self.guide, optim, Trace_ELBO(num_particles=num_particles)
@@ -22,6 +30,9 @@ class Variational:
 
         self.losses = svi_result.losses
         self.posterior = svi_result.params
+
+    def save(self,file):
+        jnp.save(file,{'losses':self.losses, 'posterior':self.posterior})
 
 
 class VariationalDelta(Variational):

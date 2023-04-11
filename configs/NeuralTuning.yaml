@@ -1,38 +1,61 @@
+# dataset parameters
+# ==================
+load: False
+
 dataset_params:
   name: NeuralTuningProcessLoader
-  epsilon: 0.1
-  spread: 0.5
-  amp: 5
-  train_prop: 0.8
+  D: 10 # dimension/number of neurons
+  M: 20 # number of conditions
+  N: 100 # number of trials per condition
+  epsilon: 0.1 # scale matrix is epsilon*np.eye(D)
+  spread: 0.5 # spread of tuning functions, in radians
+  amp: 5 # amplitude of the tuning functions (no units)
+  train_prop: 0.8 # proportion of training and testing trials per condition
+  
+  seed: 0 # generative seed (can be different from inference seed)
 
+  nu: 20 # degrees of freedom for the generative model
+  wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
+    - type: periodic # periodic/RBF are implemented
+      diag: 0.001 # diagonal term added for well-conditioning the kernel
+      scale: 1 # multiplicative term in the periodic/RBF kernel
+      sigma: 5. # kernel spread
+      
+# model parameters
+# ================
 model_params:
-  seed: 0
+  seed: 0 # inference seed
+  nu: 20 # degrees of freedom for the inference model
 
-  gp_kernel:
-    - x1:
-      type: RBF
-      diag: 0.0001
+  gp_kernel: # inference gaussian process kernel parameters
+    - type: periodic 
+      diag: 0.001
       scale: 10
-      sigma: 5
+      sigma: 5.
 
-  wp_kernel:
-    - x1: 
-      type: RBF
-      diag: 0.0001
-      scale: 10
-      sigma: 5
-      nu: 10
+  wp_kernel: # infernce wishart process kernel parameters
+    - type: periodic
+      diag: 0.001
+      scale: 1
+      sigma: 5.
 
+  likelihood: NormalConditionalLikelihood # likelihood model
+      
+# inference parameters
+# ====================
 variational_params:
-  guide: Normal
-  num_particles: 10
+  guide: VariationalNormal # VariationalNormal/VariationalDelta
+  num_particles: 10 # number of importance weighting particles
+  n_iter: 20000 # number of optimization iterations
 
   optimizer:
-    type: adam
+    type: Adam # Adam/SGD
     step_size: 0.1
 
+# visualization parameters
+# ========================
 visualization_params:
-  - plot_tuning
-  - visualize_pc
-  - plot_loss
-  - plot_box
+  - plot_tuning # plot tuning of data to training conditions
+  - visualize_pc # plot point clouds in the PC space
+  - plot_loss # plot loss
+  - plot_box # plot log likelihood and operator norm comparisons
