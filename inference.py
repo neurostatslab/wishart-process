@@ -34,13 +34,21 @@ class Variational:
     def save(self,file):
         jnp.save(file,{'losses':self.losses, 'posterior':self.posterior})
 
+    def update_params(self,joint):
+        params = [k for k in self.posterior.keys() if 'auto' not in k]
+        for p in params:
+            if hasattr(joint.wp,p): exec('joint.wp.'+p+'=self.posterior[\''+p+'\']')
+            if hasattr(joint.gp,p): exec('joint.gp.'+p+'=self.posterior[\''+p+'\']')
+            if hasattr(joint.likelihood,p): exec('joint.likelihood.'+p+'=self.posterior[\''+p+'\']')
+
+        if 'L' not in self.posterior.keys():
+            self.posterior['L'] = joint.wp.L
+
 
 class VariationalDelta(Variational):
     def __init__(self,model,init=None):
         self.guide = AutoDelta(model) if init is None else AutoDelta(model,init_loc_fn=init_to_value(values=init))
         self.model = model
-
-
         
     def sample(self):
         L = self.posterior['L']

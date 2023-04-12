@@ -13,21 +13,20 @@ from jax import vmap
 
 # %%
 class WishartProcess:
-    def __init__(self, kernel, nu, V):
+    def __init__(self, kernel, nu, V, optimize_L=False):
         self.kernel = kernel
         self.nu = nu
         self.num_dims = V.shape[0]
         # Wishart mean is V/nu
         self.L = jnp.linalg.cholesky(V/nu)
-
+        self.optimize_L = optimize_L
 
     def evaluate_kernel(self, xs, ys):
         return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(ys)
 
     def sample(self, x):
         N = x.shape[0]
-
-        L = numpyro.param('L', self.L)
+        L = numpyro.param('L', self.L) if self.optimize_L else self.L
 
         c_f = self.evaluate_kernel(x,x)
 
@@ -45,7 +44,7 @@ class WishartProcess:
     
     def posterior(self, X, Y, sigma, x):
         # TODO: If x is a subset of X, return that subset of Y
-        if jnp.array_equal(X,x): return Y, sigma
+        # if jnp.array_equal(X,x): return Y, sigma
 
         K_X_x  = self.evaluate_kernel(x,X)
         K_x_x  = self.evaluate_kernel(x,x)
@@ -54,7 +53,7 @@ class WishartProcess:
         Ki   = jnp.linalg.inv(K_X_X)
         f = jnp.einsum('ij,jmn->mni',(K_X_x.T@Ki),Y)
         K = K_x_x - K_X_x.T@Ki@K_X_x
-
+        
         F = numpyro.sample(
             'F_test',dist.MultivariateNormal(f,covariance_matrix=jnp.eye(len(K))),
             sample_shape=(1,1)
@@ -92,7 +91,7 @@ class GaussianProcess:
     
     def posterior(self, X, Y, x):
         # TODO: If x is a subset of X, return that subset of Y
-        if jnp.array_equal(X,x): return Y
+        # if jnp.array_equal(X,x): return Y
 
         K_X_x  = self.evaluate_kernel(x,X)
         K_x_x  = self.evaluate_kernel(x,x)

@@ -41,7 +41,7 @@ if __name__ == '__main__':
     dataset_params, model_params, variational_params, visualization_params = pm['dataset_params'], pm['model_params'], pm['variational_params'], pm['visualization_params']
 
     seed = pm['model_params']['seed']
-    file = args.output+f'RGR_{seed:04d}/'
+    file = args.output
 
     if not os.path.exists(file): os.makedirs(file)
 
@@ -60,8 +60,10 @@ if __name__ == '__main__':
     empirical = jnp.cov((y - y.mean(0)[None]).reshape(y.shape[0]*y.shape[1],y.shape[2]).T)
     
     wp_kernel = loader.get_kernel(model_params['wp_kernel'])
+
+    nu = model_params['nu'] if 'nu' in model_params.keys() else model_params['nu_scale']*D
     wp = models.WishartProcess(
-        kernel=wp_kernel,nu=model_params['nu'],
+        kernel=wp_kernel,nu=nu,
         V=empirical
     )
 
@@ -85,6 +87,7 @@ if __name__ == '__main__':
             n_iter=variational_params['n_iter'],key=key,
             num_particles=variational_params['num_particles']
         )
+        varfam.update_params(joint)
         varfam.save(file+'varfam')
 
     # %% Visualization
@@ -181,9 +184,10 @@ if __name__ == '__main__':
 
         with numpyro.handlers.seed(rng_seed=seed):
             lpp['w test'] = posterior.log_prob(x, y_test['x'], vi_samples=20, gp_samples=1).flatten()
-            lpp['w train'] = posterior.log_prob(x, y, vi_samples=20, gp_samples=1).flatten()
             if  'x_new' in y_test.keys():
                 lpp['w test ho'] = posterior.log_prob(x_test, y_test['x_new'], vi_samples=20, gp_samples=1).flatten()
+        
+        lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
 
         visualizations.plot_box(
             lpp,titlestr='Log Posterior Predictive',
