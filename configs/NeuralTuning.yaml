@@ -45,7 +45,7 @@ model_params:
 # ====================
 variational_params:
   guide: VariationalNormal # VariationalNormal/VariationalDelta
-  num_particles: 10 # number of importance weighting particles
+  num_particles: 1 # number of importance weighting particles
   n_iter: 20000 # number of optimization iterations
 
   optimizer:

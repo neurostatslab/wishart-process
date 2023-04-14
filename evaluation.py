@@ -32,13 +32,13 @@ def compare(y):
 
     return result
 
-def evaluate(methods,sigma):
+def evaluate(methods,sigma,ord=2):
     N = sigma.shape[2]
 
     result = {}
     for key in methods.keys():
         result[key] = [jnp.linalg.norm(
-            methods[key][:,:,i] - sigma[:,:,i], ord=2
+            methods[key][:,:,i] - sigma[:,:,i], ord=ord
         ) for i in range(N)]
 
     return result

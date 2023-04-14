@@ -126,7 +126,8 @@ class NeuralTuningProcess:
         # generate num_dims random phases
         # generate cosine response curves with the given spread
         p = numpyro.sample('phase', dist.Uniform(),sample_shape=(self.num_dims,))
-        return self.amp*jnp.cos(((jnp.pi*x[:,None]/360.)-(p[None])*jnp.pi)/self.spread)
+        a = numpyro.sample('amp', dist.Uniform(low=.5,high=1.5),sample_shape=(self.num_dims,))
+        return self.amp*a*(1+jnp.cos(((jnp.pi*x[:,None]/360.)-(p[None])*jnp.pi)/self.spread))
         
 
 
@@ -219,6 +220,6 @@ class NormalGaussianWishartPosterior:
                 lpl = self.joint.likelihood.log_prob(y,mu_,sigma_)
                 LPL.append(lpl)
         
-        LPP = jax.nn.logsumexp(jnp.stack(LPL),axis=0) - jnp.log(vi_samples)
+        LPP = jax.nn.logsumexp(jnp.stack(LPL),axis=0) - jnp.log(vi_samples) - jnp.log(gp_samples)
         return LPP
 

@@ -132,6 +132,11 @@ if __name__ == '__main__':
             save=True,file=file+'cov_comparison'
         )
 
+        jnp.save(file+'performance',performance)
+
+        performance_fro = evaluation.evaluate(compared,dataloader.sigma.transpose(1,2,0),ord='fro')
+        jnp.save(file+'performance_fro',performance_fro)
+
         mse = lambda x,y: jnp.sqrt(((x-y)**2).sum(-1))
 
         mu_empirical = y.mean(0)
@@ -143,6 +148,9 @@ if __name__ == '__main__':
             performance_mean,titlestr='Mean MSE',
             save=True,file=file+'mean_comparison'
         )
+
+        jnp.save(file+'performance_mean',performance_mean)
+
 
     x_test, y_test = dataloader.load_test_data()
     posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
@@ -182,17 +190,21 @@ if __name__ == '__main__':
         if 'empirical' in compared.keys():
             lpp['empirical'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['empirical'].transpose(2,0,1)).flatten()
 
-        with numpyro.handlers.seed(rng_seed=seed):
-            lpp['w test'] = posterior.log_prob(x, y_test['x'], vi_samples=20, gp_samples=1).flatten()
-            if  'x_new' in y_test.keys():
-                lpp['w test ho'] = posterior.log_prob(x_test, y_test['x_new'], vi_samples=20, gp_samples=1).flatten()
+        # with numpyro.handlers.seed(rng_seed=seed):
+        #     lpp['w test'] = posterior.log_prob(x, y_test['x'], vi_samples=5, gp_samples=5).flatten()
+        #     if  'x_new' in y_test.keys():
+        #         lpp['w test ho'] = posterior.log_prob(x_test, y_test['x_new'], vi_samples=5, gp_samples=5).flatten()
         
+        lpp['w test ho'] = likelihood.log_prob(y_test['x_new'], mu_test_hat, sigma_test_hat).flatten()
+        lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
         lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
 
         visualizations.plot_box(
             lpp,titlestr='Log Posterior Predictive',
             save=True,file=file+'lpp'
         )
+
+        jnp.save(file+'lpp',lpp)
 
 
 

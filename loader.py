@@ -58,6 +58,8 @@ class AllenStaticGratingsLoader:
             if eval(params['selector'],{'conditions':conditions, 'i':i})
         ]).transpose(2,0,1)
 
+        y = jnp.sqrt(y)
+
         x = jnp.array([list(conditions[i].values()) for i in range(len(counts)) 
             if eval(params['selector'],{'conditions':conditions, 'i':i})
         ])
@@ -91,7 +93,11 @@ class NeuralTuningProcessLoader:
 
         # %% Prior
         wp_kernel = get_kernel(params['wp_kernel'])
-        V = params['epsilon']*jnp.eye(params['D'])
+
+        V = CovarianceModel.low_rank(params['D'],params['rank'],seed=params['seed'],g=params['epsilon'])+\
+            1e-3*params['epsilon']*jnp.eye(params['D'])
+
+        # V = params['epsilon']*jnp.eye(params['D'])
 
         nt = models.NeuralTuningProcess(num_dims=params['D'],spread=params['spread'],amp=params['amp'])
         wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V)
@@ -136,4 +142,55 @@ class NeuralTuningProcessLoader:
         return self.x_test, self.y_test
 
 
+from scipy.linalg import block_diag
+import numpy as np
+class CovarianceModel:
+    @staticmethod
+    def low_rank(N,K,seed,g=1):
+        '''if N==K returns dense psd matrix
+        '''
+        key = jax.random.PRNGKey(seed)
+        U = np.sqrt(g)*jax.random.normal(key,shape=(N,K))/K
+        return U@U.T
 
+    # %%
+    @staticmethod
+    def clustered(
+            N,C,seed,C_std=.2,
+            clusters_mean=1.,clusters_stds=.1,clusters_prob=1,
+            external_mean=.1,external_stds=.1,external_prob=.5
+        ):
+        key = jax.random.PRNGKey(seed)
+        
+        bdiag = lambda c,v : block_diag(
+            *[jnp.ones((c[i],c[i]))*v[i] for i in range(len(c))
+        ])
+        csz = jnp.round((C_std*N/C)*jax.random.normal(key,shape=(C,))+N/C).astype(int)
+        csz = csz.at[-1].set(N-csz[:-1].sum()) 
+        
+        mask = 1-bdiag(csz,np.ones(C))
+
+        J_prob = bdiag(csz,clusters_prob+jnp.zeros((C))) + bdiag([csz.sum()],[external_prob])*mask
+        J_mean = bdiag(csz,clusters_mean*csz.mean()/csz) + bdiag([csz.sum()],[external_mean])*mask
+        J_stds = bdiag(csz,clusters_stds+jnp.zeros((C))) + bdiag([csz.sum()],[external_stds])*mask
+
+        J = jax.random.bernoulli(key,shape=J_prob.shape,p=J_prob)*(jax.random.normal(key,shape=(N,N))*J_stds+J_mean)
+        W = np.tril(J) + np.triu(J.T, 1)
+        
+        return W
+    
+    @staticmethod
+    def multi_region(
+        N,C,seed,C_std=.2,diag=1,g=1,
+    ):
+        key = jax.random.PRNGKey(seed)
+        coarse = jax.random.normal(key,shape=(C,C)) + diag*jnp.eye(C)
+        csz = jnp.round((C_std*N/C)*jax.random.normal(key,shape=(C,))+N/C).astype(int)
+        csz = csz.at[-1].set(N-csz[:-1].sum()) 
+        J = np.hstack(
+            [np.vstack(
+                [coarse[i,j]+jax.random.normal(key,shape=(csz[i],csz[j])) for i in range(C)]
+            ) for j in range(C)]
+        )
+        W = np.tril(J) + np.triu(J.T, 1)
+        return g*W
