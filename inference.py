@@ -60,7 +60,9 @@ class VariationalDelta(Variational):
     
 class VariationalNormal(Variational):
     def __init__(self,model,init=None):
-        self.guide = AutoNormal(model) if init is None else AutoNormal(model,init_loc_fn=init_to_value(values=init))
+        self.guide = AutoNormal(model) if init is None else AutoNormal(
+            model,init_loc_fn=init_to_value(values=init),init_scale=1e-2
+        )
         self.model = model
 
     def sample(self):

@@ -34,6 +34,7 @@ class WishartProcess:
             'F',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f),
             sample_shape=(self.num_dims,self.nu)
         )
+        self.F = F
 
         fft = jnp.einsum('abn,cbn->acn',F,F)
         afft = jnp.einsum('ab,bcn->acn',L,fft) 
@@ -44,7 +45,7 @@ class WishartProcess:
     
     def posterior(self, X, Y, sigma, x):
         # TODO: If x is a subset of X, return that subset of Y
-        # if jnp.array_equal(X,x): return Y, sigma
+        if jnp.array_equal(X,x): return Y, sigma
 
         K_X_x  = self.evaluate_kernel(x,X)
         K_x_x  = self.evaluate_kernel(x,x)
@@ -55,7 +56,7 @@ class WishartProcess:
         K = K_x_x - K_X_x.T@Ki@K_X_x
         
         F = numpyro.sample(
-            'F_test',dist.MultivariateNormal(f,covariance_matrix=jnp.eye(len(K))),
+            'F_test',dist.MultivariateNormal(f,covariance_matrix=K),
             sample_shape=(1,1)
         ).squeeze()
 
@@ -91,7 +92,7 @@ class GaussianProcess:
     
     def posterior(self, X, Y, x):
         # TODO: If x is a subset of X, return that subset of Y
-        # if jnp.array_equal(X,x): return Y
+        if jnp.array_equal(X,x): return Y
 
         K_X_x  = self.evaluate_kernel(x,X)
         K_x_x  = self.evaluate_kernel(x,x)
@@ -103,7 +104,7 @@ class GaussianProcess:
         K = K_x_x - K_X_x.T@Ki@K_X_x
 
         G_new = numpyro.sample(
-            'G_test',dist.MultivariateNormal(f,covariance_matrix=jnp.eye(len(K))),
+            'G_test',dist.MultivariateNormal(f,covariance_matrix=K),
             sample_shape=(1,1)
         ).squeeze().T
         
@@ -204,7 +205,6 @@ class NormalGaussianWishartPosterior:
         F,G,sigma = self.posterior.sample()
         mu_ = self.joint.gp.posterior(self.x, G, x)
         F_, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x) 
-
         return mu_, sigma_, F_
     
     def log_prob(self,x,y,vi_samples=10,gp_samples=1):

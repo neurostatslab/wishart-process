@@ -13,28 +13,11 @@ import scipy as sp
 
 from scipy import stats
 
+from matplotlib.patches import Ellipse
+import matplotlib.transforms as transforms
+
 from matplotlib.axes._axes import _log as matplotlib_axes_logger
 matplotlib_axes_logger.setLevel('ERROR')
-
-# %%
-def draw_ellipse(mean,covariance,colors,std_devs=3,ax=None,line_width=2):
-    '''sample grid that covers the range of points'''
-    min_p = mean - std_devs*np.sqrt(np.diag(covariance))
-    max_p = mean + std_devs*np.sqrt(np.diag(covariance))
-    
-    x = np.linspace(min_p[0],max_p[0],256) 
-    y = np.linspace(min_p[1],max_p[1],256)
-    X,Y = np.meshgrid(x,y)
-    
-    Z = multivariate_normal.pdf(
-        np.stack((X.reshape(-1),Y.reshape(-1))).T, 
-        mean=mean, cov=(std_devs**2)*covariance, allow_singular=True)
-    Z = Z.reshape([len(x),len(y)])
-    
-    if ax is None:
-        plt.contour(X, Y, Z, 0,colors=colors,linewidth=line_width)
-    else:
-        ax.contour(X, Y, Z, 0,colors=colors,linewidths=line_width)
 
 # %%
 def visualize_pc(
@@ -57,7 +40,6 @@ def visualize_pc(
         means = [pca.transform(means[i]) for i in range(len(means))]
         covs = [pca.components_@covs[i]@pca.components_.T for i in range(len(means))]
             
-            
 
     fig = plt.figure(figsize=(15,8))
     plt.title(title_str)
@@ -79,12 +61,12 @@ def visualize_pc(
         )
         
         draw_ellipse(
-            means[j].mean(0)[:2],covs[j][:2,:2],colors[j],
+            means[j].mean(0)[:2],covs[j][:2,:2],colors[j],ax=plt.gca(),
             std_devs=std,line_width=1
         )
 
     if pc is not None:
-        plt.scatter(pc[:,0],pc[:,1])
+        plt.scatter(pc[:,0],pc[:,1],s=.1)
 
     
     # plt.axis('equal')
@@ -164,3 +146,24 @@ def plot_tuning(x,y,lw=2,titlestr='',fontsize=10,save=False,file=None):
         plt.close('all')
     else:
         plt.show()
+
+
+
+# %%
+def draw_ellipse(mu, cov, colors, ax, std_devs=3.0, facecolor='none', **kwargs):
+    pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
+    ell_radius_x = np.sqrt(1 + pearson)
+    ell_radius_y = np.sqrt(1 - pearson)
+    ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2,
+                      facecolor=facecolor, edgecolor=colors)
+
+    scale_x = np.sqrt(cov[0, 0]) * std_devs
+    scale_y = np.sqrt(cov[1, 1]) * std_devs
+
+    transf = transforms.Affine2D() \
+        .rotate_deg(45) \
+        .scale(scale_x, scale_y) \
+        .translate(mu[0], mu[1])
+
+    ellipse.set_transform(transf + ax.transData)
+    return ax.add_patch(ellipse)
