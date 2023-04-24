@@ -57,14 +57,20 @@ if __name__ == '__main__':
     print('Trials, Conditions, Neurons: ', y.shape)
     
     gp = models.GaussianProcess(kernel=gp_kernel,num_dims=D)
+
+    prec = True if 'Precision' in model_params['likelihood']  else False
+
     empirical = jnp.cov((y - y.mean(0)[None]).reshape(y.shape[0]*y.shape[1],y.shape[2]).T)
-    
+    if prec: empirical = jnp.linalg.inv(empirical)
+
     wp_kernel = loader.get_kernel(model_params['wp_kernel'])
 
     nu = model_params['nu'] if 'nu' in model_params.keys() else model_params['nu_scale']*D
+    optimize_L = True if 'optimize_L' in model_params.keys() and model_params['optimize_L'] else False
+
     wp = models.WishartProcess(
         kernel=wp_kernel,nu=nu,
-        V=empirical
+        V=empirical, optimize_L=optimize_L
     )
 
     likelihood = eval('models.'+model_params['likelihood']+'()')
@@ -90,6 +96,8 @@ if __name__ == '__main__':
         varfam.update_params(joint)
         varfam.save(file+'varfam')
 
+    x_test, y_test = dataloader.load_test_data()
+
     # %% Visualization
     if 'visualize_pc' in visualization_params:
         visualizations.visualize_pc(
@@ -111,7 +119,6 @@ if __name__ == '__main__':
         )
 
     if 'visualize_pc' in visualization_params:
-
         with numpyro.handlers.seed(rng_seed=seed):
             F,mu_hat,sigma_hat = varfam.sample()
 
@@ -123,7 +130,7 @@ if __name__ == '__main__':
 
 
     if 'plot_box' in visualization_params:
-        compared = evaluation.compare(y)
+        compared = evaluation.compare(y,prec=prec)
         compared['wishart'] = sigma_hat.transpose(1,2,0)
         performance = evaluation.evaluate(compared,dataloader.sigma.transpose(1,2,0))
 
@@ -151,13 +158,54 @@ if __name__ == '__main__':
 
         jnp.save(file+'performance_mean',performance_mean)
 
+        sigma_test_empirical = evaluation.compare(y_test['x'],prec=prec)['empirical']
+        performance_test = evaluation.evaluate(compared,sigma_test_empirical)
 
-    x_test, y_test = dataloader.load_test_data()
+        visualizations.plot_box(
+            performance_test,titlestr='Difference Operator Norm (Test)',
+            save=True,file=file+'cov_comparison_test'
+        )
+
+        jnp.save(file+'performance_test',performance_test)
+
+
     posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
+    with numpyro.handlers.seed(rng_seed=seed):
+        mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
     
+
+    if 'plot_box' in visualization_params:
+        # posterior predictive likelihood
+        lpp = {}
+
+        if 'lw' in compared.keys(): lpp['lw'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['lw'].transpose(2,0,1)).flatten()
+        if 'lasso' in compared.keys(): lpp['lasso'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['lasso'].transpose(2,0,1)).flatten()
+        if 'empirical' in compared.keys(): lpp['empirical'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['empirical'].transpose(2,0,1)).flatten()
+        
+        lpp['w test ho'] = likelihood.log_prob(y_test['x_new'], mu_test_hat, sigma_test_hat).flatten()
+        lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
+        lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
+
+        visualizations.plot_box(
+            lpp,titlestr='Log Posterior Predictive',
+            save=True,file=file+'lpp'
+        )
+
+        jnp.save(file+'lpp',lpp)
+
+    if 'visualize_covariances' in visualization_params:
+        for k in compared.keys():
+            visualizations.visualize_covariances(
+                compared[k].transpose(2,0,1)[:,None],
+                titlestr=k,save=True,file=file+'covariance_image_'+k
+            )
+        visualizations.visualize_covariances(
+            dataloader.sigma[:,None],
+            titlestr='true',save=True,file=file+'covariance_image_true'
+        )
+
     if 'visualize_pc' in visualization_params and 'x_new' in y_test.keys():
         with numpyro.handlers.seed(rng_seed=seed):
-            
             for i in range(3):
                 mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
                 visualizations.visualize_pc(
@@ -177,36 +225,5 @@ if __name__ == '__main__':
             pc=y_test['x_new'].reshape(y_test['x_new'].shape[0]*y_test['x_new'].shape[1],-1),
             save=True,file=file+'test_true'
         )
-
-
-    if 'plot_box' in visualization_params:
-        # posterior predictive likelihood
-        lpp = {}
-
-        if 'lw' in compared.keys():
-            lpp['lw'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['lw'].transpose(2,0,1)).flatten()
-        if 'lasso' in compared.keys():
-            lpp['lasso'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['lasso'].transpose(2,0,1)).flatten()
-        if 'empirical' in compared.keys():
-            lpp['empirical'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['empirical'].transpose(2,0,1)).flatten()
-
-        # with numpyro.handlers.seed(rng_seed=seed):
-        #     lpp['w test'] = posterior.log_prob(x, y_test['x'], vi_samples=5, gp_samples=5).flatten()
-        #     if  'x_new' in y_test.keys():
-        #         lpp['w test ho'] = posterior.log_prob(x_test, y_test['x_new'], vi_samples=5, gp_samples=5).flatten()
-        
-        lpp['w test ho'] = likelihood.log_prob(y_test['x_new'], mu_test_hat, sigma_test_hat).flatten()
-        lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
-        lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
-
-        visualizations.plot_box(
-            lpp,titlestr='Log Posterior Predictive',
-            save=True,file=file+'lpp'
-        )
-
-        jnp.save(file+'lpp',lpp)
-
-
-
 
 

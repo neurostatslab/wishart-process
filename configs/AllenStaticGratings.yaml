@@ -2,23 +2,27 @@ dataset_params:
   name: AllenStaticGratingsLoader
   snr_threshold: 4
   bin_edges: [0.0, 0.2]
-  selector: conditions[i]['spatial_freq'] == 0.08 # 
-  train_prop: 0.8
+  selector: conditions[i]['spatial_freq'] == 0.02 # 'True'
+  train_trial_prop: .8
+  train_condition_prop: .9
+
 
 model_params:
   seed: 0
-  nu_scale: 4
-  optimize_L: True
+  nu: 100
+  optimize_L: False
   gp_kernel:
     - type: periodic
       diag: 0.01
-      scale: 50
-      sigma: .1
+      scale: 1
+      sigma: .5
+      normalizer: 180
     
     - type: periodic
       diag: 0.01
-      scale: 50
-      sigma: 0.0008
+      scale: 1
+      sigma: .5
+      normalizer: 1
 
     # - type: RBF
     #   diag: 0.01
@@ -28,13 +32,15 @@ model_params:
   wp_kernel:
     - type: periodic
       diag: .01
-      scale: .01
-      sigma: .05
+      scale: 1. #10
+      sigma: 5.5
+      normalizer: 180
 
     - type: periodic
       diag: .01
-      scale: .01
-      sigma: 0.0004
+      scale: 1. #10
+      sigma: 5.5
+      normalizer: 1
 
     # - type: RBF
     #   diag: 0.01
@@ -46,11 +52,11 @@ model_params:
 variational_params:
   guide: VariationalNormal # VariationalNormal/VariationalDelta
   num_particles: 1 # number of importance weighting particles
-  n_iter: 20000 # number of optimization iterations
+  n_iter: 50000 # number of optimization iterations
 
   optimizer:
     type: Adam
-    step_size: 0.01
+    step_size: 0.001
 
 visualization_params:
   - visualize_pc

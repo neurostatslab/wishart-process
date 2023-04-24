@@ -66,7 +66,7 @@ def visualize_pc(
         )
 
     if pc is not None:
-        plt.scatter(pc[:,0],pc[:,1],s=.1)
+        plt.scatter(pc[:,0],pc[:,1],s=.5)
 
     
     # plt.axis('equal')
@@ -167,3 +167,63 @@ def draw_ellipse(mu, cov, colors, ax, std_devs=3.0, facecolor='none', **kwargs):
 
     ellipse.set_transform(transf + ax.transData)
     return ax.add_patch(ellipse)
+
+
+# %%
+def visualize_covariances(cov,titlestr='',fontsize=10,save=False,file=None):
+    fig, axes = plt.subplots(
+        nrows=cov.shape[0], ncols=cov.shape[1],
+        figsize=(3*cov.shape[1], 3*cov.shape[0])
+    )
+    if cov.shape[0] == 1: axes = axes[None]
+    if cov.shape[1] == 1: axes = axes[:,None]
+    
+    vmin = cov.min()
+    vmax = cov.max()
+    for i in range(cov.shape[0]):
+        for j in range(cov.shape[1]):
+            im = axes[i,j].imshow(cov[i,j], vmin=vmin, vmax=vmax)
+            plt.xticks(fontsize=fontsize)
+            plt.yticks(fontsize=fontsize)
+
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.9, 0.1, 0.05, 0.8])
+    fig.colorbar(im, cax=cbar_ax)
+
+    plt.suptitle(titlestr,fontsize=fontsize)
+
+
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+
+
+# %%
+def plot_torus(phi,theta,R0=2,a=.3,save=False,file=None):
+    R0, a = 2., .3
+    zlim = max(R0,a)+1
+
+    # torus parametrization
+    x_ = (R0 + a*np.cos(theta)) * np.cos(phi)
+    y_ = (R0 + a*np.cos(theta)) * np.sin(phi)
+    z_ = a * np.sin(theta)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x_,y_,z_,s=10)
+    ax.set_zlim(-zlim,zlim)
+
+    ax.axis('off')
+    ax.view_init(elev=30, azim=20)
+
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+

@@ -193,6 +193,21 @@ class JointGaussianWishartProcess:
             LPL = self.likelihood.log_prob(y,G,sigma,ind)
 
         return LPW.sum() + LPG.sum() + LPL.sum()
+    
+
+# %%
+class NormalPrecisionConditionalLikelihood:
+    def sample(self,mu,sigma,ind=None,y=None):
+        Y = numpyro.sample(
+            'y',dist.MultivariateNormal(mu[ind,...],precision_matrix=sigma[ind,...]),
+            obs=y
+        )
+        return Y
+    
+    def log_prob(self,Y,mu,sigma,ind=None):
+        LPY = dist.MultivariateNormal(mu[ind,...],precision_matrix=sigma[ind,...]).log_prob(Y)
+        return LPY
+
 
 # %%
 class NormalGaussianWishartPosterior:

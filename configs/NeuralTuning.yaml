@@ -10,8 +10,9 @@ dataset_params:
   epsilon: 0.1 # scale matrix is epsilon*np.eye(D)
   spread: 0.5 # spread of tuning functions, in radians
   amp: 5 # amplitude of the tuning functions (no units)
-  train_prop: 0.8 # proportion of training and testing trials per condition
-  
+  train_trial_prop: .8 # proportion of training and testing trials per condition
+  train_condition_prop: .9 # proportion of training and testing conditions
+
   seed: 0 # generative seed (can be different from inference seed)
 
   nu: 20 # degrees of freedom for the generative model

@@ -11,23 +11,38 @@ from sklearn.covariance import EmpiricalCovariance
 
 # %%
 
-def compare(y):
+def compare(y,prec=False):
     result = {}
 
     try:
-        result['lw'] = jnp.stack([
-            LedoitWolf().fit(y[:,i,:]).covariance_ for i in range(y.shape[1])
-        ], axis=-1)
+        if prec:
+            result['lw'] = jnp.stack([
+                LedoitWolf().fit(y[:,i,:]).precision_ for i in range(y.shape[1])
+            ], axis=-1)
+        else:
+            result['lw'] = jnp.stack([
+                LedoitWolf().fit(y[:,i,:]).covariance_ for i in range(y.shape[1])
+            ], axis=-1)
     except: pass
     try:
-        result['lasso'] = jnp.stack([
-            GraphicalLasso().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
-        ], axis=-1)
+        if prec:
+            result['lasso'] = jnp.stack([
+                GraphicalLasso().fit(y[:, i, :]).precision_ for i in range(y.shape[1])
+            ], axis=-1)
+        else:
+            result['lasso'] = jnp.stack([
+                GraphicalLasso().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
+            ], axis=-1)
     except: pass
     try:
-        result['empirical'] = jnp.stack([
-            EmpiricalCovariance().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
-        ], axis=-1)
+        if prec:
+            result['empirical'] = jnp.stack([
+                EmpiricalCovariance().fit(y[:, i, :]).precision_ for i in range(y.shape[1])
+            ], axis=-1)
+        else:
+            result['empirical'] = jnp.stack([
+                EmpiricalCovariance().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
+            ], axis=-1)
     except: pass
 
     return result
