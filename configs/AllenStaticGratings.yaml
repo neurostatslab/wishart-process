@@ -1,3 +1,5 @@
+load: False
+
 dataset_params:
   name: AllenStaticGratingsLoader
   snr_threshold: 4

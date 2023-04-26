@@ -3,26 +3,38 @@
 load: False
 
 dataset_params:
-  name: NeuralTuningProcessLoader
+  name: GPWPLoader
   D: 10 # dimension/number of neurons
   M: 20 # number of conditions
-  N: 100 # number of trials per condition
+  N: 20 # number of trials per condition
+  
+  scale_type: low_rank
+  rank: 3
   epsilon: 0.1 # scale matrix is epsilon*np.eye(D)
-  spread: 0.5 # spread of tuning functions, in radians
-  amp: 5 # amplitude of the tuning functions (no units)
+
   train_trial_prop: .8 # proportion of training and testing trials per condition
   train_condition_prop: .9 # proportion of training and testing conditions
 
   seed: 0 # generative seed (can be different from inference seed)
 
   nu: 20 # degrees of freedom for the generative model
+  
+  gp_kernel: # inference gaussian process kernel parameters
+    - type: periodic 
+      diag: 0.001
+      scale: 10
+      sigma: 5.
+      normalizer: 360
+
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
       diag: 0.001 # diagonal term added for well-conditioning the kernel
       scale: 1 # multiplicative term in the periodic/RBF kernel
       sigma: 5. # kernel spread
-      
+      normalizer: 360
+
   likelihood: NormalConditionalLikelihood
+      
 # model parameters
 # ================
 model_params:
@@ -34,12 +46,14 @@ model_params:
       diag: 0.001
       scale: 10
       sigma: 5.
+      normalizer: 360
 
   wp_kernel: # infernce wishart process kernel parameters
     - type: periodic
       diag: 0.001
       scale: 1
       sigma: 5.
+      normalizer: 360
 
   likelihood: NormalConditionalLikelihood # likelihood model
       

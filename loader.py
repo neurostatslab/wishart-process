@@ -103,6 +103,7 @@ class MonkeyReachLoader:
 
         targetOn = targetOn[valid]
         targetPos = targetPos[valid,:2]
+        
         spikes = [spikes[i] for i in valid]
 
         positions, indices, counts = np.unique(
@@ -110,6 +111,7 @@ class MonkeyReachLoader:
             return_inverse=True,
             return_counts=True
         )
+        
         n_trials = min(counts)
 
         y = np.array([
@@ -119,6 +121,7 @@ class MonkeyReachLoader:
             for i in range(positions.shape[0])]
         ).transpose(1,0,2)
 
+        y = np.sqrt(y)
 
         car2polar = lambda z: np.array((
             np.rad2deg(np.arctan2(z[:,0], z[:,1])),
@@ -126,14 +129,19 @@ class MonkeyReachLoader:
         )).T
 
         if params['representation'] == 'cartesian': 
-            conditions = [{'x':positions[i,0],'y':positions[i,1]} for i in range(len(positions))]
+            x = positions
+            conditions = [{'x':x[i,0],'y':x[i,1]} for i in range(len(x))]
         if params['representation'] == 'polar':
-            polar = car2polar(positions)
-            conditions = [{'theta':polar[i,0],'r':polar[i,1]} for i in range(len(polar))]
+            x = car2polar(positions)
+            conditions = [{'theta':x[i,0],'r':x[i,1]} for i in range(len(x))]
 
-        x = jnp.array([list(conditions[i].values()) for i in range(len(counts)) 
+        selected =[
+            i for i in range(len(counts)) 
             if eval(params['selector'],{'conditions':conditions, 'i':i})
-        ])
+        ]
+        
+        x = x[selected]
+        y = y[:,selected,:]
 
         self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
             x,y,params['train_trial_prop'],params['train_condition_prop'],
@@ -149,10 +157,7 @@ class MonkeyReachLoader:
 # %%
 class NeuralTuningProcessLoader:
     def __init__(self,params):
-        x = jnp.linspace(0,360,params['M'],endpoint=False)
-        x_test = jnp.take(x,jnp.array([0,len(x)//2+1]))
-        x = jnp.setdiff1d(x,x_test)
-
+        x = jnp.linspace(0,360,params['M'],endpoint=False)[:,None]
         # %% Prior
         wp_kernel = get_kernel(params['wp_kernel'])
 
@@ -165,8 +170,8 @@ class NeuralTuningProcessLoader:
         likelihood = eval('models.'+params['likelihood']+'()')
 
         with numpyro.handlers.seed(rng_seed=params['seed']):
-            mu = nt.sample(jnp.hstack((x,x_test)))
-            sigma = wp.sample(jnp.hstack((x,x_test)))
+            mu = nt.sample(jnp.hstack((x)))
+            sigma = wp.sample(jnp.hstack((x)))
             y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(params['N'])])
 
         self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
@@ -181,13 +186,14 @@ class NeuralTuningProcessLoader:
         return self.x_test, self.y_test
 
 def get_scale_matrix(params):
-    if params['type'] == 'low_rank':
+    if params['scale_type'] == 'low_rank':
         return params['epsilon']*(CovarianceModel.low_rank(params['D'],params['rank'],seed=params['seed'],g=1e0)+\
                 1e-1*params['epsilon']*jnp.eye(params['D']))
-    if params['type'] == 'block':
-        return params['epsilon']*(CovarianceModel.low_rank(params['D'],params['rank'],seed=params['seed'],g=1e0)+\
-            1e-1*params['epsilon']*jnp.eye(params['D']))
-    if params['type'] == 'diag':
+    if params['scale_type'] == 'multi_region':
+        return params['epsilon']*(CovarianceModel.multi_region(
+                params['D'],C=params['C'],seed=params['seed'],g=1e0
+            ) + 1e0*jnp.eye(params['D']))
+    if params['scale_type'] == 'diag':
         return params['epsilon']*jnp.eye(params['D'])
         
     
@@ -195,9 +201,6 @@ def get_scale_matrix(params):
 class GPWPLoader():
     def __init__(self,params):
         x = jnp.linspace(0,360,params['M'],endpoint=False)
-        x_test = jnp.take(x,jnp.array([0,len(x)//2+1]))
-        x = jnp.setdiff1d(x,x_test)
-
         # %% Prior
         gp_kernel = get_kernel(params['gp_kernel'])
         wp_kernel = get_kernel(params['wp_kernel'])
@@ -211,14 +214,17 @@ class GPWPLoader():
         likelihood = eval('models.'+params['likelihood']+'()')
 
         with numpyro.handlers.seed(rng_seed=params['seed']):
-            mu = gp.sample(jnp.hstack((x,x_test)))
-            sigma = wp.sample(jnp.hstack((x,x_test)))
+            mu = gp.sample(x)
+            sigma = wp.sample(x)
             y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(params['N'])])
+        
 
-            self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
-                x,y,params['train_trial_prop'],params['train_condition_prop'],
-                seed=params['seed'],mu=mu,sigma=sigma
-            )
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
+            x[:,None],y,params['train_trial_prop'],params['train_condition_prop'],
+            seed=params['seed'],mu=mu,sigma=sigma
+        )
+        self.x = self.x.squeeze()
+        self.x_test = self.x_test.squeeze()
 
     def load_data(self):
         return self.x, self.y
@@ -249,14 +255,14 @@ def split_data(
         
         test_conditions = jnp.setdiff1d(np.arange(M),train_conditions).tolist()
         test_trials = jnp.setdiff1d(np.arange(N),train_trials).tolist()
-
+        
         y_test = {
-            'x':y[test_trials][:,train_conditions],
+            'x':y[test_trials,:,:][:,train_conditions],
             'x_test':y[:,test_conditions]
         }
 
         x_train = x[train_conditions,:]
-        y_train = y[train_trials][:,train_conditions]
+        y_train = y[train_trials,:,:][:,train_conditions]
         x_test = x[test_conditions,:]
 
         if mu is not None:  mu_test,mu_train = mu[test_conditions,:],mu[train_conditions,:]

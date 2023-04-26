@@ -1,3 +1,5 @@
+load: False
+
 dataset_params:
   name: MonkeyReachLoader
   session: /mnt/home/anejatbakhsh/Desktop/Projects/Wishart-Process/data/EvenChenSheffer-2019/3-rings/r_2016-01-27_1.mat
@@ -5,7 +7,7 @@ dataset_params:
   train_trial_prop: .8
   train_condition_prop: .9
   seed: 0
-  representation: polar # polar or cartesian
+  representation: polar # cartesian or cartesian
   selector: (abs(conditions[i]['r']) > 1e-6) & (abs(conditions[i]['r']) < 50)
 
 model_params:
@@ -13,33 +15,28 @@ model_params:
   nu: 100
   optimize_L: False
   gp_kernel:
-    - type: RBF
-      diag: 0.01
-      scale: 1
-      sigma: .5
-      normalizer: 1
-
     - type: periodic
-      diag: 0.01
-      scale: 1
-      sigma: .5
-      normalizer: 180
-    
+      diag: 0.001
+      scale: .1
+      sigma: .1
+      normalizer: 360
+
+    - type: RBF
+      diag: 1.
+      scale: 10
+      sigma: 100.
 
   wp_kernel:
-    - type: RBF
-      diag: 0.01
-      scale: 1
-      sigma: .5
-      normalizer: 1
-
     - type: periodic
-      diag: .01
+      diag: .001
       scale: 1. #10
-      sigma: 5.5
-      normalizer: 180
+      sigma: 4.5
+      normalizer: 360
 
-
+    - type: RBF
+      diag: 1.
+      scale: 1
+      sigma: 100.
 
   likelihood: NormalConditionalLikelihood # likelihood model
 
