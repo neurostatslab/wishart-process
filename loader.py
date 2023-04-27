@@ -101,11 +101,18 @@ class MonkeyReachLoader:
         ))[0]
 
         targetOn = targetOn[valid]
-        targetPos = targetPos[valid,:2]
+
+        car2polar = lambda z: np.array((
+            np.rad2deg(np.arctan2(z[:,0], z[:,1])),
+            np.sqrt(z[:,0]**2+z[:,1]**2)
+        )).T
         
+        if params['representation'] == 'cartesian': targetPos = targetPos[valid,:2]
+        if params['representation'] == 'polar': targetPos = car2polar(targetPos[valid,:2])
+
         spikes = [spikes[i] for i in valid]
 
-        positions, indices, counts = np.unique(
+        x, indices, counts = np.unique(
             targetPos,axis=0,
             return_inverse=True,
             return_counts=True
@@ -117,22 +124,15 @@ class MonkeyReachLoader:
             [spikes[j].toarray()[
                 :,int(targetOn[j]-params['window']):int(targetOn[j])].sum(1) 
             for j in np.where(indices==i)[0][:n_trials]] 
-            for i in range(positions.shape[0])]
+            for i in range(x.shape[0])]
         ).transpose(1,0,2)
 
         y = np.sqrt(y)
 
-        car2polar = lambda z: np.array((
-            np.rad2deg(np.arctan2(z[:,0], z[:,1])),
-            np.sqrt(z[:,0]**2+z[:,1]**2)
-        )).T
+        
 
-        if params['representation'] == 'cartesian': 
-            x = positions
-            conditions = [{'x':x[i,0],'y':x[i,1]} for i in range(len(x))]
-        if params['representation'] == 'polar':
-            x = car2polar(positions)
-            conditions = [{'theta':x[i,0],'r':x[i,1]} for i in range(len(x))]
+        if params['representation'] == 'cartesian':  conditions = [{'x':x[i,0],'y':x[i,1]} for i in range(len(x))]
+        if params['representation'] == 'polar': conditions = [{'theta':x[i,0],'r':x[i,1]} for i in range(len(x))]
 
         selected =[
             i for i in range(len(counts)) 
@@ -194,6 +194,10 @@ def get_scale_matrix(params):
             ) + 1e0*jnp.eye(params['D']))
     if params['scale_type'] == 'diag':
         return params['epsilon']*jnp.eye(params['D'])
+    if params['scale_type'] == 'exp_decay_eig':
+        return params['epsilon']*CovarianceModel.exp_decay_eig(
+            params['D'],seed=params['seed']
+        )
         
     
 # %%
@@ -324,3 +328,10 @@ class CovarianceModel:
         )
         W = np.tril(J) + np.triu(J.T, 1)
         return g*W
+
+    @staticmethod
+    def exp_decay_eig(N,seed):
+        key = jax.random.PRNGKey(seed)
+        U = jax.random.orthogonal(key,N)
+        Lambda = jnp.diag(jnp.logspace(1,0,N))
+        return U@Lambda@U.T

@@ -32,6 +32,7 @@ def visualize_pc(
             pca = PCA(n_components=2)
             pca.fit_transform(pc)
             pc = pca.transform(pc)
+            
         else:
             pca = PCA(n_components=2)
             pca.fit_transform(np.vstack(means))
@@ -39,7 +40,6 @@ def visualize_pc(
         
         means = [pca.transform(means[i]) for i in range(len(means))]
         covs = [pca.components_@covs[i]@pca.components_.T for i in range(len(means))]
-            
 
     fig = plt.figure(figsize=(15,8))
     plt.title(title_str)

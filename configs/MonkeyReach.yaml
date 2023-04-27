@@ -2,7 +2,7 @@ load: False
 
 dataset_params:
   name: MonkeyReachLoader
-  session: /mnt/home/anejatbakhsh/Desktop/Projects/Wishart-Process/data/EvenChenSheffer-2019/3-rings/r_2016-01-27_1.mat
+  session: /mnt/home/anejatbakhsh/Desktop/Projects/Wishart-Process/data/EvenChenSheffer-2019/3-rings/r_2016-01-29_1.mat
   window: 400
 
   train_trial_prop: .8
@@ -28,7 +28,7 @@ model_params:
       scale: 10
       sigma: 100.
 
-  wp_kernel_diag: 0.1
+  wp_kernel_diag: 0.001
   wp_kernel:
     - type: periodic
       scale: 1. #10
@@ -36,7 +36,7 @@ model_params:
       normalizer: 360
 
     - type: RBF
-      scale: 1
+      scale: 1.
       sigma: 100.
 
   likelihood: NormalConditionalLikelihood # likelihood model
@@ -48,7 +48,7 @@ variational_params:
 
   optimizer:
     type: Adam
-    step_size: 0.0001
+    step_size: 0.001
 
 visualization_params:
   - visualize_pc

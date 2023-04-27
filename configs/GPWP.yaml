@@ -4,13 +4,13 @@ load: False
 
 dataset_params:
   name: GPWPLoader
-  D: 10 # dimension/number of neurons
+  D: 100 # dimension/number of neurons
   M: 20 # number of conditions
-  N: 20 # number of trials per condition
+  N: 40 # number of trials per condition
   
-  scale_type: low_rank
-  rank: 3
-  epsilon: 0.1 # scale matrix is epsilon*np.eye(D)
+  scale_type: exp_decay_eig
+  # rank: 3
+  epsilon: 0.01 #.1 # scale matrix is epsilon*np.eye(D)
 
   train_trial_prop: .8 # proportion of training and testing trials per condition
   train_condition_prop: .9 # proportion of training and testing conditions
@@ -23,14 +23,14 @@ dataset_params:
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
       sigma: 5.
-      scale: 5
+      scale: 1
       normalizer: 360
 
   wp_kernel_diag: 0.001
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
       sigma: 5. # kernel spread
-      scale: 5
+      scale: 1
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood
