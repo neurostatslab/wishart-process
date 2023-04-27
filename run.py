@@ -51,7 +51,7 @@ if __name__ == '__main__':
     
     
     # %%
-    gp_kernel = loader.get_kernel(model_params['gp_kernel'])
+    gp_kernel = loader.get_kernel(model_params['gp_kernel'],model_params['gp_kernel_diag'])
     D = y.shape[2]
     
     print('Trials, Conditions, Neurons: ', y.shape)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     empirical = jnp.cov((y - y.mean(0)[None]).reshape(y.shape[0]*y.shape[1],y.shape[2]).T)
     if prec: empirical = jnp.linalg.inv(empirical)
 
-    wp_kernel = loader.get_kernel(model_params['wp_kernel'])
+    wp_kernel = loader.get_kernel(model_params['wp_kernel'],model_params['wp_kernel_diag'])
 
     nu = model_params['nu'] if 'nu' in model_params.keys() else model_params['nu_scale']*D
     optimize_L = True if 'optimize_L' in model_params.keys() and model_params['optimize_L'] else False
@@ -182,7 +182,7 @@ if __name__ == '__main__':
         if 'lasso' in compared.keys(): lpp['lasso'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['lasso'].transpose(2,0,1)).flatten()
         if 'empirical' in compared.keys(): lpp['empirical'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['empirical'].transpose(2,0,1)).flatten()
         
-        lpp['w test ho'] = likelihood.log_prob(y_test['x_new'], mu_test_hat, sigma_test_hat).flatten()
+        lpp['w test ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat, sigma_test_hat).flatten()
         lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
         lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
 
@@ -204,13 +204,13 @@ if __name__ == '__main__':
             titlestr='true',save=True,file=file+'covariance_image_true'
         )
 
-    if 'visualize_pc' in visualization_params and 'x_new' in y_test.keys():
+    if 'visualize_pc' in visualization_params and 'x_test' in y_test.keys():
         with numpyro.handlers.seed(rng_seed=seed):
             for i in range(3):
                 mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
                 visualizations.visualize_pc(
                     mu_test_hat[:,None],sigma_test_hat,
-                    pc=y_test['x_new'].reshape(y_test['x_new'].shape[0]*y_test['x_new'].shape[1],-1),
+                    pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
                     save=True,file=file+'test_inferred_'+str(i)
                 )
 
@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
         visualizations.visualize_pc(
             dataloader.mu_test[:,None],dataloader.sigma_test,
-            pc=y_test['x_new'].reshape(y_test['x_new'].shape[0]*y_test['x_new'].shape[1],-1),
+            pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
             save=True,file=file+'test_true'
         )
 

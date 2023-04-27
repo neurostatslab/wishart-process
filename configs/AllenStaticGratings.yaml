@@ -13,41 +13,29 @@ model_params:
   seed: 0
   nu: 100
   optimize_L: False
+  gp_kernel_diag: 0.01
   gp_kernel:
     - type: periodic
-      diag: 0.01
-      scale: 1
       sigma: .5
+      scale: 1
       normalizer: 180
     
     - type: periodic
-      diag: 0.01
-      scale: 1
       sigma: .5
+      scale: 1
       normalizer: 1
 
-    # - type: RBF
-    #   diag: 0.01
-    #   scale: 10
-    #   sigma: 10.
-
+  gp_kernel_diag: 0.01
   wp_kernel:
     - type: periodic
-      diag: .01
-      scale: 1. #10
       sigma: 5.5
+      scale: 1
       normalizer: 180
-
+      
     - type: periodic
-      diag: .01
-      scale: 1. #10
       sigma: 5.5
+      scale: 1
       normalizer: 1
-
-    # - type: RBF
-    #   diag: 0.01
-    #   scale: 1000.
-    #   sigma: 1000.
 
   likelihood: NormalConditionalLikelihood # likelihood model
 

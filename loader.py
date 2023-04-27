@@ -20,26 +20,25 @@ import numpy as np
 from scipy.io import loadmat
 
 # %%
-def get_kernel(params):
+def get_kernel(params,diag):
     '''Returns the full kernel of multi-dimensional condition spaces
     '''
     if len(params) > 1: 
-        return lambda x,y: reduce(
+        return lambda x,y: diag*(x==y)+reduce(
             lambda a,b: a*b, [
                 _get_kernel(params[i]['type'],params[i])(x[i],y[i]) for i in range(len(params))
-            ]
-        )
+            ])
     else: 
-        return lambda x,y: _get_kernel(params[0]['type'],params[0])(x,y)
+        return lambda x,y: diag*(x==y)+_get_kernel(params[0]['type'],params[0])(x,y)
         
 
 def _get_kernel(kernel,params):
     '''Private function, returns the kernel corresponding to a single dimension
     '''
     if kernel == 'periodic': 
-        return lambda x,y: params['scale']*(params['diag']*(x==y)+jnp.exp(-2*jnp.sin(jnp.pi*jnp.abs(x-y)/params['normalizer'])**2/(params['sigma']**2)))
+        return lambda x,y: params['scale']*jnp.exp(-2*jnp.sin(jnp.pi*jnp.abs(x-y)/params['normalizer'])**2/(params['sigma']**2))
     if kernel == 'RBF': 
-        return lambda x,y: params['scale']*(params['diag']*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*params['sigma']**2)))
+        return lambda x,y: params['scale']*jnp.exp(-jnp.linalg.norm(x-y)**2/(2*params['sigma']**2))
 
 
 # %%
@@ -159,7 +158,7 @@ class NeuralTuningProcessLoader:
     def __init__(self,params):
         x = jnp.linspace(0,360,params['M'],endpoint=False)[:,None]
         # %% Prior
-        wp_kernel = get_kernel(params['wp_kernel'])
+        wp_kernel = get_kernel(params['wp_kernel'],params['wp_kernel_diag'])
 
         V = get_scale_matrix(params)
 
@@ -202,8 +201,8 @@ class GPWPLoader():
     def __init__(self,params):
         x = jnp.linspace(0,360,params['M'],endpoint=False)
         # %% Prior
-        gp_kernel = get_kernel(params['gp_kernel'])
-        wp_kernel = get_kernel(params['wp_kernel'])
+        gp_kernel = get_kernel(params['gp_kernel'],params['gp_kernel_diag'])
+        wp_kernel = get_kernel(params['wp_kernel'],params['wp_kernel_diag'])
 
         V = get_scale_matrix(params)
 

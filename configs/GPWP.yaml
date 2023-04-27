@@ -17,20 +17,20 @@ dataset_params:
 
   seed: 0 # generative seed (can be different from inference seed)
 
-  nu: 20 # degrees of freedom for the generative model
+  nu: 200 # degrees of freedom for the generative model
   
+  gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
-      diag: 0.001
-      scale: 10
       sigma: 5.
+      scale: 5
       normalizer: 360
 
+  wp_kernel_diag: 0.001
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
-      diag: 0.001 # diagonal term added for well-conditioning the kernel
-      scale: 1 # multiplicative term in the periodic/RBF kernel
       sigma: 5. # kernel spread
+      scale: 5
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood
@@ -39,20 +39,20 @@ dataset_params:
 # ================
 model_params:
   seed: 0 # inference seed
-  nu: 20 # degrees of freedom for the inference model
+  nu: 200 # degrees of freedom for the inference model
 
+  gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
-      diag: 0.001
-      scale: 10
       sigma: 5.
+      scale: 5
       normalizer: 360
-
+    
+  wp_kernel_diag: 0.1
   wp_kernel: # infernce wishart process kernel parameters
     - type: periodic
-      diag: 0.001
-      scale: 1
       sigma: 5.
+      scale: 5
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood # likelihood model
@@ -62,11 +62,11 @@ model_params:
 variational_params:
   guide: VariationalNormal # VariationalNormal/VariationalDelta
   num_particles: 1 # number of importance weighting particles
-  n_iter: 20000 # number of optimization iterations
+  n_iter: 50000 # number of optimization iterations
 
   optimizer:
     type: Adam # Adam/SGD
-    step_size: 0.1
+    step_size: 0.001
 
 # visualization parameters
 # ========================

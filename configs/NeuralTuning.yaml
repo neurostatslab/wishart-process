@@ -16,9 +16,9 @@ dataset_params:
   seed: 0 # generative seed (can be different from inference seed)
 
   nu: 20 # degrees of freedom for the generative model
+  wp_kernel_diag: 0.001 # diagonal term added for well-conditioning the kernel
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
-      diag: 0.001 # diagonal term added for well-conditioning the kernel
       scale: 1 # multiplicative term in the periodic/RBF kernel
       sigma: 5. # kernel spread
       
@@ -29,15 +29,15 @@ model_params:
   seed: 0 # inference seed
   nu: 20 # degrees of freedom for the inference model
 
+  gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
-      diag: 0.001
       scale: 10
       sigma: 5.
 
+  wp_kernel_diag: 0.001
   wp_kernel: # infernce wishart process kernel parameters
     - type: periodic
-      diag: 0.001
       scale: 1
       sigma: 5.
 
