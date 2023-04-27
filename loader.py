@@ -24,7 +24,7 @@ def get_kernel(params,diag):
     '''Returns the full kernel of multi-dimensional condition spaces
     '''
     if len(params) > 1: 
-        return lambda x,y: diag*(x==y)+reduce(
+        return lambda x,y: diag*jnp.all(x==y)+reduce(
             lambda a,b: a*b, [
                 _get_kernel(params[i]['type'],params[i])(x[i],y[i]) for i in range(len(params))
             ])
@@ -91,7 +91,7 @@ class MonkeyReachLoader:
         data = loadmat(params['session'],simplify_cells=True)['r'] # For original files, use 'R'
         targetOn = np.array([row['timeTargetOn'] for row in data])
         targetPos = np.array([row['startTrialParams']['posTarget'] for row in data])
-        spikes = [row['spikeRaster'] for row in data]
+        spikes = [row['spikeRaster2'] for row in data]
 
         uncued_time = 20
 
