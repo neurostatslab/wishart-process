@@ -207,7 +207,7 @@ class JointGaussianWishartProcess:
         for p in params:
             if hasattr(self.wp,p): exec('self.wp.'+p+'=posterior[\''+p+'\']')
             if hasattr(self.gp,p): exec('self.gp.'+p+'=posterior[\''+p+'\']')
-            if hasattr(self.likelihood,p): exec('self.likelihood.'+p+'=osterior[\''+p+'\']')
+            if hasattr(self.likelihood,p): exec('self.likelihood.'+p+'=posterior[\''+p+'\']')
 
     
 
