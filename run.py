@@ -68,17 +68,31 @@ if __name__ == '__main__':
     nu = model_params['nu'] if 'nu' in model_params.keys() else model_params['nu_scale']*D
     optimize_L = True if 'optimize_L' in model_params.keys() and model_params['optimize_L'] else False
 
+    wp_sample_diag = model_params['wp_sample_diag'] if 'wp_sample_diag' in model_params else 1e0
     wp = models.WishartProcess(
         kernel=wp_kernel,nu=nu,
-        V=empirical, optimize_L=optimize_L
+        V=empirical+wp_sample_diag*jnp.eye(D), optimize_L=optimize_L,
+        diag_scale=wp_sample_diag
     )
 
-    likelihood = eval('models.'+model_params['likelihood']+'()')
+    if 'likelihood_params' in model_params:
+        likelihood = eval('models.'+model_params['likelihood']+'(**model_params[\'likelihood_params\'])')
+    else:
+        likelihood = eval('models.'+model_params['likelihood']+'()')
     joint = models.JointGaussianWishartProcess(gp,wp,likelihood) 
 
+    if 'init_gt' in model_params and model_params['init_gt']: 
+        init = {
+            'G':dataloader.mu.T[:,None],
+            'F':dataloader.F
+        }
+    else: 
+        init = {
+            'G':y.mean(0).T[:,None]
+        }
     # %%
     varfam = eval('inference.'+variational_params['guide'])(
-        joint.model,init={'G':y.mean(0).T[:,None]}
+        joint.model,init=init
     )
     optimizer = eval('optim.'+variational_params['optimizer']['type'])(
         variational_params['optimizer']['step_size']
@@ -93,7 +107,8 @@ if __name__ == '__main__':
             n_iter=variational_params['n_iter'],key=key,
             num_particles=variational_params['num_particles']
         )
-        varfam.update_params(joint)
+
+        joint.update_params(varfam.posterior)
         varfam.save(file+'varfam')
 
     x_test, y_test = dataloader.load_test_data()
@@ -119,8 +134,10 @@ if __name__ == '__main__':
         )
 
     if 'visualize_pc' in visualization_params:
+        posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
         with numpyro.handlers.seed(rng_seed=seed):
-            F,mu_hat,sigma_hat = varfam.sample()
+            mu_hat, sigma_hat, F_hat = posterior.sample(x)
+            mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
 
         visualizations.visualize_pc(
             mu_hat[:,None],sigma_hat,
@@ -131,7 +148,9 @@ if __name__ == '__main__':
 
     if 'plot_box' in visualization_params:
         compared = evaluation.compare(y,prec=prec)
+        compared['grand-empirical'] = jnp.repeat(empirical[:,:,None],y.shape[1],2)
         compared['wishart'] = sigma_hat.transpose(1,2,0)
+        
         performance = evaluation.evaluate(compared,dataloader.sigma.transpose(1,2,0))
 
         visualizations.plot_box(
@@ -140,6 +159,10 @@ if __name__ == '__main__':
         )
 
         jnp.save(file+'performance',performance)
+
+        if prec: 
+            performance_cov = evaluation.evaluate(compared,dataloader.sigma.transpose(1,2,0),prec=prec)
+            jnp.save(file+'performance_prec_cov',performance_cov)
 
         performance_fro = evaluation.evaluate(compared,dataloader.sigma.transpose(1,2,0),ord='fro')
         jnp.save(file+'performance_fro',performance_fro)
@@ -167,21 +190,17 @@ if __name__ == '__main__':
         )
 
         jnp.save(file+'performance_test',performance_test)
-
-
-    posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
-    with numpyro.handlers.seed(rng_seed=seed):
-        mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
     
 
     if 'plot_box' in visualization_params:
         # posterior predictive likelihood
         lpp = {}
 
-        if 'lw' in compared.keys(): lpp['lw'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['lw'].transpose(2,0,1)).flatten()
-        if 'lasso' in compared.keys(): lpp['lasso'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['lasso'].transpose(2,0,1)).flatten()
-        if 'empirical' in compared.keys(): lpp['empirical'] = likelihood.log_prob(y_test['x'],mu_empirical,compared['empirical'].transpose(2,0,1)).flatten()
+        for key in compared.keys():
+            lpp[key] = likelihood.log_prob(y_test['x'],mu_empirical,compared[key].transpose(2,0,1)).flatten()
         
+        del lpp['wishart']
+
         lpp['w test ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat, sigma_test_hat).flatten()
         lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
         lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()

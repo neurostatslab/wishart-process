@@ -4,63 +4,62 @@ load: False
 
 dataset_params:
   name: GPWPLoader
-  D: 100 # dimension/number of neurons
-  M: 20 # number of conditions
-  N: 10 # number of trials per condition
+  D: 2 # dimension/number of neurons
+  M: 10 # number of conditions
+  N: 100 # number of trials per condition
   
   scale_type: exp_decay_eig
-  # rank: 2
-  epsilon: 10. #.1 # scale matrix is epsilon*np.eye(D)
+  # rank: 3
+  epsilon: .5 #.1 # scale matrix is epsilon*np.eye(D)
 
   train_trial_prop: .8 # proportion of training and testing trials per condition
   train_condition_prop: .9 # proportion of training and testing conditions
 
   seed: 0 # generative seed (can be different from inference seed)
 
-  nu: 2 # degrees of freedom for the generative model
+  nu: 200 # degrees of freedom for the generative model
   
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
-      scale: 1
-      sigma: 1.
+      sigma: 5.
+      scale: 10
       normalizer: 360
-
-  wp_sample_diag: 1.
 
   wp_kernel_diag: 0.001
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
+      sigma: 5. # kernel spread
       scale: 1
-      sigma: 2. # kernel spread
       normalizer: 360
 
-  likelihood: NormalConditionalLikelihood
-      
+  likelihood: PoissonConditionalLikelihood
+  likelihood_params:
+    rate: [10.,10.]
+          
 # model parameters
 # ================
 model_params:
   seed: 0 # inference seed
-  nu: 2 # degrees of freedom for the inference model
+  nu: 200 # degrees of freedom for the inference model
 
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
-      scale: 1
-      sigma: 1.
+      sigma: 5.
+      scale: 10
       normalizer: 360
-
-  wp_sample_diag: 1.
-  
-  optimize_L: True
+    
   wp_kernel_diag: 0.001
   wp_kernel: # infernce wishart process kernel parameters
-    - type: periodic      
+    - type: periodic
+      sigma: 5.
       scale: 1
-      sigma: 2.
       normalizer: 360
 
-  likelihood: NormalConditionalLikelihood # likelihood model
+  likelihood: PoissonConditionalLikelihood # likelihood model
+  likelihood_params:
+    rate: [10.,10.]
       
 # inference parameters
 # ====================

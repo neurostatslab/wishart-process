@@ -13,16 +13,25 @@ from jax import vmap
 
 # %%
 class WishartProcess:
-    def __init__(self, kernel, nu, V, optimize_L=False):
+    def __init__(self, kernel, nu, V, optimize_L=False, diag_scale=1e-1):
         self.kernel = kernel
         self.nu = nu
         self.num_dims = V.shape[0]
         # Wishart mean is V/nu
         self.L = jnp.linalg.cholesky(V/nu)
         self.optimize_L = optimize_L
+        self.diag_scale=diag_scale
 
     def evaluate_kernel(self, xs, ys):
         return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(ys)
+
+    def f2sigma(self, F, L=None):
+        if L is None: L = self.L
+
+        fft = jnp.einsum('abn,cbn->acn',F,F)+self.diag_scale*jnp.eye(self.num_dims)[:,:,None]
+        afft = jnp.einsum('ab,bcn->acn',L,fft) 
+        sigma = jnp.einsum('abn,bc->nac',afft,L.T) 
+        return sigma
 
     def sample(self, x):
         N = x.shape[0]
@@ -36,9 +45,7 @@ class WishartProcess:
         )
         self.F = F
 
-        fft = jnp.einsum('abn,cbn->acn',F,F)
-        afft = jnp.einsum('ab,bcn->acn',L,fft) 
-        sigma = jnp.einsum('abn,bc->nac',afft,L.T) 
+        sigma = self.f2sigma(F,L)
 
         return sigma
 
@@ -52,7 +59,8 @@ class WishartProcess:
         K_X_X  = self.evaluate_kernel(X,X)
 
         Ki   = jnp.linalg.inv(K_X_X)
-        f = jnp.einsum('ij,jmn->mni',(K_X_x.T@Ki),Y)
+        
+        f = jnp.einsum('ij,mnj->mni',(K_X_x.T@Ki),Y)
         K = K_x_x - K_X_x.T@Ki@K_X_x
         
         F = numpyro.sample(
@@ -60,9 +68,9 @@ class WishartProcess:
             sample_shape=(1,1)
         ).squeeze()
 
-        return F.transpose(2,0,1), jnp.einsum(
-            "ai,ijk,ljk,bl->kab", self.L, F, F, self.L
-        )
+        sigma = self.f2sigma(F)
+
+        return F, sigma
     
     def log_prob(self, x, F):
         # TODO: input to this fn must be sigma, not F
@@ -148,7 +156,7 @@ class NormalConditionalLikelihood:
 # %%
 class PoissonConditionalLikelihood:
     def __init__(self,rate):
-        self.rate = rate
+        self.rate = jnp.array(rate)
 
     def sample(self,mu,sigma,ind=None,y=None):
         rate = numpyro.param('rate', self.rate)
@@ -194,6 +202,14 @@ class JointGaussianWishartProcess:
 
         return LPW.sum() + LPG.sum() + LPL.sum()
     
+    def update_params(self, posterior):
+        params = [k for k in posterior.keys() if 'auto' not in k]
+        for p in params:
+            if hasattr(self.wp,p): exec('self.wp.'+p+'=posterior[\''+p+'\']')
+            if hasattr(self.gp,p): exec('self.gp.'+p+'=posterior[\''+p+'\']')
+            if hasattr(self.likelihood,p): exec('self.likelihood.'+p+'=osterior[\''+p+'\']')
+
+    
 
 # %%
 class NormalPrecisionConditionalLikelihood:
@@ -217,8 +233,11 @@ class NormalGaussianWishartPosterior:
         self.x = x
 
     def sample(self, x):
-        F,G,sigma = self.posterior.sample()
-        mu_ = self.joint.gp.posterior(self.x, G, x)
+        F,G = self.posterior.sample()
+        
+        sigma = self.joint.wp.f2sigma(F)
+
+        mu_ = self.joint.gp.posterior(self.x, G.squeeze().T, x)
         F_, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x) 
         return mu_, sigma_, F_
     
@@ -228,9 +247,10 @@ class NormalGaussianWishartPosterior:
         '''
         LPL = []
         for i in range(vi_samples):
-            F,G,sigma = self.posterior.sample()
+            F,G = self.posterior.sample()
+            sigma = self.joint.wp.f2sigma(F)
             for j in range(gp_samples):
-                mu_ = self.joint.gp.posterior(self.x, G, x)
+                mu_ = self.joint.gp.posterior(self.x, G.squeeze().T, x)
                 _, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x) 
                 lpl = self.joint.likelihood.log_prob(y,mu_,sigma_)
                 LPL.append(lpl)

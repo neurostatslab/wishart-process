@@ -68,9 +68,9 @@ class AllenStaticGratingsLoader:
             if eval(params['selector'],{'conditions':conditions, 'i':i})
         ])
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
             x,y,params['train_trial_prop'],params['train_condition_prop'],
-            seed=params['seed'],mu=None,sigma=None
+            seed=params['seed'],mu=None,sigma=None,F=None
         )
 
     def load_data(self):
@@ -142,9 +142,9 @@ class MonkeyReachLoader:
         x = x[selected]
         y = y[:,selected,:]
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
             x,y,params['train_trial_prop'],params['train_condition_prop'],
-            seed=params['seed'],mu=None,sigma=None
+            seed=params['seed'],mu=None,sigma=None,F=None
         )
         
     def load_data(self):
@@ -173,9 +173,9 @@ class NeuralTuningProcessLoader:
             sigma = wp.sample(jnp.hstack((x)))
             y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(params['N'])])
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
             x,y,params['train_trial_prop'],params['train_condition_prop'],
-            seed=params['seed'],mu=mu,sigma=sigma
+            seed=params['seed'],mu=mu,sigma=sigma,F=wp.F
         )
 
     def load_data(self):
@@ -209,12 +209,16 @@ class GPWPLoader():
         wp_kernel = get_kernel(params['wp_kernel'],params['wp_kernel_diag'])
 
         V = get_scale_matrix(params)
+        self.V = V
+
+        diag_scale = params['wp_sample_diag'] if 'wp_sample_diag' in params else 1e-1
 
         gp = models.GaussianProcess(kernel=gp_kernel,num_dims=params['D'])
-        wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V)
+        wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V,diag_scale=diag_scale)
 
         # %% Likelihood
-        likelihood = eval('models.'+params['likelihood']+'()')
+        if 'likelihood_params' in params: likelihood = eval('models.'+params['likelihood']+'(**params[\'likelihood_params\'])')
+        else: likelihood = eval('models.'+params['likelihood']+'()')
 
         with numpyro.handlers.seed(rng_seed=params['seed']):
             mu = gp.sample(x)
@@ -222,9 +226,9 @@ class GPWPLoader():
             y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(params['N'])])
         
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
             x[:,None],y,params['train_trial_prop'],params['train_condition_prop'],
-            seed=params['seed'],mu=mu,sigma=sigma
+            seed=params['seed'],mu=mu,sigma=sigma,F=wp.F
         )
         self.x = self.x.squeeze()
         self.x_test = self.x_test.squeeze()
@@ -237,7 +241,7 @@ class GPWPLoader():
 
 def split_data(
         x,y,train_trial_prop,train_condition_prop,seed,
-        mu=None,sigma=None
+        mu=None,sigma=None,F=None
     ):
         N,M,D = y.shape
         
@@ -273,8 +277,12 @@ def split_data(
         
         if sigma is not None:  sigma_test,sigma_train = sigma[test_conditions,:,:],sigma[train_conditions,:,:]
         else: sigma_test,sigma_train = None,None
+
         
-        return x_train,y_train,mu_train,sigma_train,x_test,y_test,mu_test,sigma_test
+        if F is not None:  F_test,F_train = F[:,:,test_conditions],F[:,:,train_conditions]
+        else: F_test,F_train = None,None
+        
+        return x_train,y_train,mu_train,sigma_train,x_test,y_test,mu_test,sigma_test,F_train,F_test
 
 
         
@@ -333,5 +341,5 @@ class CovarianceModel:
     def exp_decay_eig(N,seed):
         key = jax.random.PRNGKey(seed)
         U = jax.random.orthogonal(key,N)
-        Lambda = jnp.diag(jnp.logspace(1,0,N))
+        Lambda = jnp.diag(jnp.logspace(0,-5,N))
         return U@Lambda@U.T

@@ -13,6 +13,7 @@ import scipy as sp
 
 from scipy import stats
 
+import matplotlib
 from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 
@@ -28,15 +29,9 @@ def visualize_pc(
     '''
 
     if means.shape[2] > 2:
-        if pc is not None:
-            pca = PCA(n_components=2)
-            pca.fit_transform(pc)
-            pc = pca.transform(pc)
-            
-        else:
-            pca = PCA(n_components=2)
-            pca.fit_transform(np.vstack(means))
-            
+        pca = PCA(n_components=2)
+        pca.fit_transform(np.vstack(means))
+        if pc is not None: pc = pca.transform(pc)
         
         means = [pca.transform(means[i]) for i in range(len(means))]
         covs = [pca.components_@covs[i]@pca.components_.T for i in range(len(means))]
@@ -226,4 +221,5 @@ def plot_torus(phi,theta,R0=2,a=.3,save=False,file=None):
         plt.close('all')
     else:
         plt.show()
+
 

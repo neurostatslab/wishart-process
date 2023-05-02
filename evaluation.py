@@ -47,13 +47,20 @@ def compare(y,prec=False):
 
     return result
 
-def evaluate(methods,sigma,ord=2):
+def evaluate(methods,sigma,ord=2,prec=False):
     N = sigma.shape[2]
 
     result = {}
     for key in methods.keys():
-        result[key] = [jnp.linalg.norm(
-            methods[key][:,:,i] - sigma[:,:,i], ord=ord
-        ) for i in range(N)]
+        if prec:
+            try:
+                result[key] = [jnp.linalg.norm(
+                    jnp.linalg.inv(methods[key][:,:,i]) - jnp.linalg.inv(sigma[:,:,i]), ord=ord
+                ) for i in range(N)]
+            except: continue
+        else:
+            result[key] = [jnp.linalg.norm(
+                methods[key][:,:,i] - sigma[:,:,i], ord=ord
+            ) for i in range(N)]
 
     return result
