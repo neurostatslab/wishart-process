@@ -77,7 +77,7 @@ class AllenStaticGratingsLoader:
         return self.x, self.y
     
     def load_test_data(self):
-        return None, self.y_test
+        return self.x_test, self.y_test
     
 # %% 
 class MonkeyReachLoader:
@@ -232,6 +232,8 @@ class GPWPLoader():
         )
         self.x = self.x.squeeze()
         self.x_test = self.x_test.squeeze()
+
+        self.likelihood = likelihood
 
     def load_data(self):
         return self.x, self.y

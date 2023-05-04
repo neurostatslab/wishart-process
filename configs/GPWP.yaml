@@ -5,7 +5,7 @@ load: False
 dataset_params:
   name: GPWPLoader
   D: 100 # dimension/number of neurons
-  M: 20 # number of conditions
+  M: 40 # number of conditions
   N: 10 # number of trials per condition
   
   scale_type: exp_decay_eig
@@ -32,7 +32,7 @@ dataset_params:
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
       scale: 1
-      sigma: 2. # kernel spread
+      sigma: 1. # kernel spread
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood
@@ -57,7 +57,7 @@ model_params:
   wp_kernel: # infernce wishart process kernel parameters
     - type: periodic      
       scale: 1
-      sigma: 2.
+      sigma: 1.
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood # likelihood model

@@ -7,34 +7,37 @@ dataset_params:
   selector: conditions[i]['spatial_freq'] == 0.02 # 'True'
   train_trial_prop: .8
   train_condition_prop: .9
+  seed: 1
 
 
 model_params:
   seed: 0
-  nu: 100
-  optimize_L: False
-  gp_kernel_diag: 0.01
+  nu: 2
+  optimize_L: True
+  gp_kernel_diag: 0.001
   gp_kernel:
     - type: periodic
-      sigma: .5
-      scale: 1
+      sigma: 1.
+      scale: 1.
       normalizer: 180
     
     - type: periodic
-      sigma: .5
-      scale: 1
+      sigma: 1.
+      scale: 1.
       normalizer: 1
 
-  gp_kernel_diag: 0.01
+  wp_sample_diag: .1
+
+  wp_kernel_diag: 0.001
   wp_kernel:
     - type: periodic
-      sigma: 5.5
-      scale: 1
+      sigma: 1.
+      scale: .1
       normalizer: 180
       
     - type: periodic
-      sigma: 5.5
-      scale: 1
+      sigma: 1.
+      scale: .1
       normalizer: 1
 
   likelihood: NormalConditionalLikelihood # likelihood model

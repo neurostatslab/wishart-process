@@ -27,8 +27,8 @@ class WishartProcess:
 
     def f2sigma(self, F, L=None):
         if L is None: L = self.L
-
-        fft = jnp.einsum('abn,cbn->acn',F,F)+self.diag_scale*jnp.eye(self.num_dims)[:,:,None]
+        diag = self.diag_scale*jnp.eye(self.num_dims)[:,:,None]
+        fft = jnp.einsum('abn,cbn->acn',F[:,:-1],F[:,:-1]) + diag
         afft = jnp.einsum('ab,bcn->acn',L,fft) 
         sigma = jnp.einsum('abn,bc->nac',afft,L.T) 
         return sigma
@@ -78,6 +78,75 @@ class WishartProcess:
         c_f = self.evaluate_kernel(x,x)
         LPF = dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f).log_prob(F)
         return LPF
+
+# %%
+class WishartGammaProcess:
+    def __init__(self, kernel, nu, V, optimize_L=False, diag_scale=1e-1):
+        self.kernel = kernel
+        self.nu = nu
+        self.num_dims = V.shape[0]
+        # Wishart mean is V/nu
+        self.L = jnp.linalg.cholesky(V/nu)
+        self.optimize_L = optimize_L
+        self.diag_scale=diag_scale
+
+    def evaluate_kernel(self, xs, ys):
+        return vmap(lambda x: vmap(lambda y: self.kernel(x, y))(xs))(ys)
+
+    def f2sigma(self, F, L=None):
+        if L is None: L = self.L
+        diag = self.diag_scale*jnp.stack([jnp.diag(jax.nn.softplus(F[:,-1,i])) for i in range(F.shape[2])],axis=-1)
+        fft = jnp.einsum('abn,cbn->acn',F[:,:-1],F[:,:-1]) + diag
+        afft = jnp.einsum('ab,bcn->acn',L,fft) 
+        sigma = jnp.einsum('abn,bc->nac',afft,L.T) 
+        return sigma
+
+    def sample(self, x):
+        N = x.shape[0]
+        L = numpyro.param('L', self.L) if self.optimize_L else self.L
+
+        c_f = self.evaluate_kernel(x,x)
+
+        F = numpyro.sample(
+            'F',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f),
+            sample_shape=(self.num_dims,self.nu+1)
+        )
+        self.F = F
+
+        sigma = self.f2sigma(F,L)
+
+        return sigma
+
+    
+    def posterior(self, X, Y, sigma, x):
+        # TODO: If x is a subset of X, return that subset of Y
+        if jnp.array_equal(X,x): return Y, sigma
+
+        K_X_x  = self.evaluate_kernel(x,X)
+        K_x_x  = self.evaluate_kernel(x,x)
+        K_X_X  = self.evaluate_kernel(X,X)
+
+        Ki   = jnp.linalg.inv(K_X_X)
+        
+        f = jnp.einsum('ij,mnj->mni',(K_X_x.T@Ki),Y)
+        K = K_x_x - K_X_x.T@Ki@K_X_x
+        
+        F = numpyro.sample(
+            'F_test',dist.MultivariateNormal(f,covariance_matrix=K),
+            sample_shape=(1,1)
+        ).squeeze()
+
+        sigma = self.f2sigma(F)
+
+        return F, sigma
+    
+    def log_prob(self, x, F):
+        # TODO: input to this fn must be sigma, not F
+        N = x.shape[0]
+        c_f = self.evaluate_kernel(x,x)
+        LPF = dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f).log_prob(F)
+        return LPF
+    
 # %%
 class GaussianProcess:
     def __init__(self, kernel, num_dims):
@@ -159,17 +228,20 @@ class PoissonConditionalLikelihood:
         self.rate = jnp.array(rate)
 
     def sample(self,mu,sigma,ind=None,y=None):
-        rate = numpyro.param('rate', self.rate)
+        rate = self.rate
+        # rate = numpyro.param('rate', self.rate)
 
         G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
-        Y = numpyro.sample('y',dist.Poisson(jax.nn.softplus(G[ind,...]+rate[None])).to_event(1),obs=y)
+        Y = numpyro.sample('y',dist.Poisson(jnp.exp(G[ind,...]+rate[None])).to_event(1),obs=y)
         
+        self.G = G
         return Y
     
     def log_prob(self,G,Y,mu,sigma,ind=None):
         # TODO: sample from G, the input to this fn must be only Y
         LPG = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(G)
-        LPY = dist.Poisson(jax.nn.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y)
+        # jax.nn.softplus
+        LPY = dist.Poisson(jnp.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y)
         
         return LPG + LPY
     
