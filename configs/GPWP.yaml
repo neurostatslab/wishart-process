@@ -8,9 +8,9 @@ dataset_params:
   M: 40 # number of conditions
   N: 10 # number of trials per condition
   
-  scale_type: exp_decay_eig
+  scale_type: diag
   # rank: 2
-  epsilon: 10. #.1 # scale matrix is epsilon*np.eye(D)
+  epsilon: 1. #.1 # scale matrix is epsilon*np.eye(D)
 
   train_trial_prop: .8 # proportion of training and testing trials per condition
   train_condition_prop: .9 # proportion of training and testing conditions

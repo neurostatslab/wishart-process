@@ -5,14 +5,14 @@ dataset_params:
   snr_threshold: 4
   bin_edges: [0.0, 0.2]
   selector: conditions[i]['spatial_freq'] == 0.02 # 'True'
-  train_trial_prop: .8
-  train_condition_prop: .9
+  train_trial_prop: .9
+  train_condition_prop: 1.
   seed: 1
 
 
 model_params:
-  seed: 0
-  nu: 2
+  seed: 2
+  nu: 3
   optimize_L: True
   gp_kernel_diag: 0.001
   gp_kernel:
@@ -22,7 +22,7 @@ model_params:
       normalizer: 180
     
     - type: periodic
-      sigma: 1.
+      sigma: .1
       scale: 1.
       normalizer: 1
 
@@ -36,7 +36,7 @@ model_params:
       normalizer: 180
       
     - type: periodic
-      sigma: 1.
+      sigma: 0.1
       scale: .1
       normalizer: 1
 

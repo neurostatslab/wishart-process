@@ -82,6 +82,7 @@ class AllenStaticGratingsLoader:
 # %% 
 class MonkeyReachLoader:
     def __init__(self,params):
+        # TODO: Fix the error, this returns outliers (maybe for return trials?)
         '''
             params['session']: session file address
             params['window']: time in milliseconds for calculating spike counts
@@ -97,7 +98,7 @@ class MonkeyReachLoader:
 
         valid = np.where((
             ~np.isnan(targetOn) & 
-            (targetOn != uncued_time)
+            (np.around(targetOn,-1) != uncued_time)
         ))[0]
 
         targetOn = targetOn[valid]
@@ -108,7 +109,7 @@ class MonkeyReachLoader:
         )).T
         
         if params['representation'] == 'cartesian': targetPos = targetPos[valid,:2]
-        if params['representation'] == 'polar': targetPos = car2polar(targetPos[valid,:2])
+        if params['representation'] == 'polar': targetPos = np.around(car2polar(targetPos[valid,:2]),-1)
 
         spikes = [spikes[i] for i in valid]
 
@@ -123,7 +124,7 @@ class MonkeyReachLoader:
         y = np.array([
             [spikes[j].toarray()[
                 :,int(targetOn[j]-params['window']):int(targetOn[j])].sum(1) 
-            for j in np.where(indices==i)[0][:n_trials]] 
+            for j in np.where(indices==i)[0][:n_trials].tolist()] 
             for i in range(x.shape[0])]
         ).transpose(1,0,2)
 
@@ -287,6 +288,15 @@ def split_data(
         return x_train,y_train,mu_train,sigma_train,x_test,y_test,mu_test,sigma_test,F_train,F_test
 
 
+# %%
+from scipy.stats import rankdata
+from sklearn.metrics import pairwise_distances
+
+def create_adjacency(x):
+    idx = rankdata(x, method='dense',axis=0)-1
+    dist = pairwise_distances(idx,metric='l1')
+    dist[dist != 1] = 0
+    return dist
         
 class CovarianceModel:
     @staticmethod

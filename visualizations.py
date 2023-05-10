@@ -22,8 +22,8 @@ matplotlib_axes_logger.setLevel('ERROR')
 
 # %%
 def visualize_pc(
-        means,covs,pc=None,title_str='',fontsize=9,dotsize=30,
-        std=3,lim=None,save=False,file=None
+        means,covs,pc=None,title_str='',fontsize=9,dotsize=30,K=None,
+        linewidth=2,std=3,lim=None,save=False,file=None
     ):
     '''Visualize point clouds and atlases learned from them
     '''
@@ -37,39 +37,58 @@ def visualize_pc(
         covs = [pca.components_@covs[i]@pca.components_.T for i in range(len(means))]
 
     fig = plt.figure(figsize=(15,8))
-    plt.title(title_str)
+    plt.title(title_str,fontsize=fontsize)
 
     colors = np.vstack((
         np.zeros((2,len(means))),
         np.linspace(0,1,len(means))
     )).T
+
+
+    if K is not None:
+        for i in range(len(K)):
+            for j in range(i+1,len(K)):
+                if K[i,j] > 0:
+                    plt.plot(
+                        [np.mean(means,1)[i][0],np.mean(means,1)[j][0]],
+                        [np.mean(means,1)[i][1],np.mean(means,1)[j][1]],
+                        lw=linewidth,linestyle='dashed',color='k'
+                    )
+    else:
+        plt.plot(
+            np.mean(means,1)[:,0],np.mean(means,1)[:,1],'k--',
+            linewidth=linewidth
+        )
+
     
-    plt.plot(
-        np.mean(means,1)[:,0],np.mean(means,1)[:,1]
-    )
+    
 
 
     for j in range(len(means)):
         plt.scatter(
             means[j][:,0],means[j][:,1], 
-            s=10, c=colors[j], marker='.'
+            s=dotsize, c=colors[j], marker='.'
         )
         
         draw_ellipse(
             means[j].mean(0)[:2],covs[j][:2,:2],colors[j],ax=plt.gca(),
-            std_devs=std,line_width=1
+            std_devs=std,linewidth=linewidth
         )
 
     if pc is not None:
         plt.scatter(pc[:,0],pc[:,1],s=.5)
 
     
-    # plt.axis('equal')
+    plt.axis('equal')
+    plt.axis('off')
+
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+
 
     if lim is not None:
         plt.xlim(lim)
         plt.ylim(lim)
-    
     
     if save:
         plt.savefig(file+'.png',format='png')
@@ -145,12 +164,17 @@ def plot_tuning(x,y,lw=2,titlestr='',fontsize=10,save=False,file=None):
 
 
 # %%
-def draw_ellipse(mu, cov, colors, ax, std_devs=3.0, facecolor='none', **kwargs):
+def draw_ellipse(
+        mu, cov, colors, ax, std_devs=3.0, 
+        facecolor='none', linewidth=1, **kwargs
+    ):
     pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
     ell_radius_x = np.sqrt(1 + pearson)
     ell_radius_y = np.sqrt(1 - pearson)
-    ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2,
-                      facecolor=facecolor, edgecolor=colors)
+    ellipse = Ellipse(
+        (0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2,
+        facecolor=facecolor, edgecolor=colors, linewidth=linewidth
+    )
 
     scale_x = np.sqrt(cov[0, 0]) * std_devs
     scale_y = np.sqrt(cov[1, 1]) * std_devs
