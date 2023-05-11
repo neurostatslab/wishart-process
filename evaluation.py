@@ -64,3 +64,30 @@ def evaluate(methods,sigma,ord=2,prec=False):
             ) for i in range(N)]
 
     return result
+
+import numpy as np
+from scipy.stats import rankdata
+
+
+#  %%
+def evaluate_var_smoothness(x,y,methods):
+    if x.shape[1] == 2:
+        idx = rankdata(x, method='dense',axis=0)-1
+
+        y_reshaped = {}
+        for m in range(len(y)):
+            a = np.nan*np.zeros((idx.max(0)+1).tolist() + [y[0].shape[1]])
+            
+            for i in range(len(x)): 
+                a[idx[i][0],idx[i][1]] = y[m][i]
+        
+            y_reshaped[methods[m]] = a.copy()
+            
+        
+        corr = {}
+        for m in methods:
+            corr[m] = ((
+                y_reshaped[m].flatten()-
+                y_reshaped['empirical'].flatten()
+            )**2).mean()
+        return corr

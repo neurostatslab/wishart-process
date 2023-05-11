@@ -86,7 +86,7 @@ class WishartGammaProcess:
         self.nu = nu
         self.num_dims = V.shape[0]
         # Wishart mean is V/nu
-        self.L = jnp.linalg.cholesky(V/nu)
+        self.L = jnp.linalg.cholesky(V/max(nu,1))
         self.optimize_L = optimize_L
         self.diag_scale=diag_scale
 
@@ -99,6 +99,7 @@ class WishartGammaProcess:
         fft = jnp.einsum('abn,cbn->acn',F[:,:-1],F[:,:-1]) + diag
         afft = jnp.einsum('ab,bcn->acn',L,fft) 
         sigma = jnp.einsum('abn,bc->nac',afft,L.T) 
+        
         return sigma
 
     def sample(self, x):

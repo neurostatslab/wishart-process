@@ -128,9 +128,11 @@ class MonkeyReachLoader:
             for i in range(x.shape[0])]
         ).transpose(1,0,2)
 
+        # diff = (np.diff(y.var(0),axis=0)**2).sum(1)
+        # y = y[:,:,np.argsort(diff)[:10]]
+
         y = np.sqrt(y)
 
-        
 
         if params['representation'] == 'cartesian':  conditions = [{'x':x[i,0],'y':x[i,1]} for i in range(len(x))]
         if params['representation'] == 'polar': conditions = [{'theta':x[i,0],'r':x[i,1]} for i in range(len(x))]
