@@ -104,7 +104,7 @@ if __name__ == '__main__':
         varfam.load(file+'varfam.npy')
     else:
         varfam.infer(
-            optimizer,x,y,
+            optimizer,x.squeeze(),y,
             n_iter=variational_params['n_iter'],key=key,
             num_particles=variational_params['num_particles']
         )

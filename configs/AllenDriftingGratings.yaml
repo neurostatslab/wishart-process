@@ -2,44 +2,55 @@ load: False
 
 dataset_params:
   name: AllenStaticGratingsLoader
-  gratings: static
+  gratings: drifting
   snr_threshold: 4
   bin_edges: [0.0, 0.2]
-  selector: conditions[i]['spatial_freq'] == 0.02 # 'True'
+  selector: 'True'
   train_trial_prop: .9
-  train_condition_prop: 1.
-  seed: 1
+  train_condition_prop: .8
+  seed: 0
 
 
 model_params:
-  seed: 2
-  nu: 3
-  optimize_L: True
+  seed: 1
+  nu: 0
+  optimize_L: False
+
   gp_kernel_diag: 0.001
   gp_kernel:
     - type: periodic
+      scale: 2.
       sigma: 1.
-      scale: 1.
       normalizer: 180
-    
-    - type: periodic
-      sigma: .1
-      scale: 1.
-      normalizer: 1
 
-  wp_sample_diag: .1
+    - type: RBF
+      scale: 2.
+      sigma: .1
+      normalizer: 15.
+
+    - type: periodic
+      scale: 2.
+      sigma: 100.
+      normalizer: 2.
+
+  wp_sample_diag: 1.
 
   wp_kernel_diag: 0.001
   wp_kernel:
     - type: periodic
-      sigma: 1.
-      scale: .1
+      scale: 1.
+      sigma: 2.
       normalizer: 180
+
+    - type: RBF
+      scale: 1.
+      sigma: .1
+      normalizer: 15.
       
     - type: periodic
-      sigma: 0.1
-      scale: .1
-      normalizer: 1
+      scale: 1.
+      sigma: 100.
+      normalizer: 2.
 
   likelihood: NormalConditionalLikelihood # likelihood model
 

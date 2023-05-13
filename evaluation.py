@@ -84,10 +84,23 @@ def evaluate_var_smoothness(x,y,methods):
             y_reshaped[methods[m]] = a.copy()
             
         
-        corr = {}
+        mse = {}
         for m in methods:
-            corr[m] = ((
+            mse[m] = np.median(((
                 y_reshaped[m].flatten()-
                 y_reshaped['empirical'].flatten()
-            )**2).mean()
-        return corr
+            )**2))
+        return mse
+    
+    if len(x.shape) == 1 or x.shape[1]==1:
+        y_reshaped = {}
+        for m in range(len(y)):
+            y_reshaped[methods[m]] = y[m]
+
+        mse = {}
+        for m in methods:
+            mse[m] = np.median(((
+                y_reshaped[m].flatten()-
+                y_reshaped['empirical'].flatten()
+            )**2))
+        return mse

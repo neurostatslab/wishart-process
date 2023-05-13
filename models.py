@@ -135,7 +135,7 @@ class WishartGammaProcess:
         F = numpyro.sample(
             'F_test',dist.MultivariateNormal(f,covariance_matrix=K),
             sample_shape=(1,1)
-        ).squeeze()
+        )[0,0]
 
         sigma = self.f2sigma(F)
 

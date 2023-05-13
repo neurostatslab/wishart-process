@@ -51,10 +51,25 @@ class AllenStaticGratingsLoader:
             selector = 'True'
         '''
         dataloader = AllenBrainData()
-        counts, conditions, unit_locs = dataloader.load_mouse_vis_static_gratings(
-            snr_threshold=params['snr_threshold'],
-            bin_edges=params['bin_edges']
-        )
+        if params['gratings'] == 'static':
+            counts, conditions, unit_locs = dataloader.load_mouse_vis_static_gratings(
+                snr_threshold=params['snr_threshold'],
+                bin_edges=params['bin_edges']
+            )
+
+        if params['gratings'] == 'drifting':
+            counts, conditions, unit_locs = dataloader.load_mouse_vis_drifting_gratings(
+                snr_threshold=params['snr_threshold'],
+                bin_edges=params['bin_edges']
+            )
+
+            if 'representation' in params.keys() and params['representation'] == 'direction':
+                conditions = [{
+                    'orientation':np.mod(c['angle'],180),
+                    'temporal_freq':c['temporal_freq'],
+                    'direction':c['angle'] < 180
+                    } for c in conditions]
+        
 
         n_trials = min([c.shape[1] for c in counts])
         
