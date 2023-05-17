@@ -7,9 +7,9 @@ dataset_params:
   bin_edges: [0.0, 0.2]
   selector: 'True'
   train_trial_prop: .9
-  train_condition_prop: .8
+  train_condition_prop: 1.
   seed: 0
-
+  representation: direction
 
 model_params:
   seed: 1
@@ -30,7 +30,7 @@ model_params:
 
     - type: periodic
       scale: 2.
-      sigma: 100.
+      sigma: 10.
       normalizer: 2.
 
   wp_sample_diag: 1.

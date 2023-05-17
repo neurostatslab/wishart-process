@@ -113,7 +113,7 @@ class MonkeyReachLoader:
 
         valid = np.where((
             ~np.isnan(targetOn) & 
-            (np.around(targetOn,-1) != uncued_time)
+            (np.around(targetOn,0) != uncued_time)
         ))[0]
 
         targetOn = targetOn[valid]
@@ -124,7 +124,7 @@ class MonkeyReachLoader:
         )).T
         
         if params['representation'] == 'cartesian': targetPos = targetPos[valid,:2]
-        if params['representation'] == 'polar': targetPos = np.around(car2polar(targetPos[valid,:2]),-1)
+        if params['representation'] == 'polar': targetPos = np.around(car2polar(targetPos[valid,:2]),0)
 
         spikes = [spikes[i] for i in valid]
 
