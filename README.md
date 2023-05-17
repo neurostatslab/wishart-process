@@ -14,14 +14,9 @@ conda activate jaxenv
 
 5. Run either using the demo file or the run script via the following commands
 
-- Run demo.py
-
 ```
 python demo.py
 ```
-
-- Run using config files
-
 ```
 python run.py -c configs/GPWP.yaml -o ../results/
 ```
