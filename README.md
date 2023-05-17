@@ -12,6 +12,8 @@ conda activate jaxenv
 
 4. Install other requirements (matplotlib, scipy, sklearn, numpyro)
 
+5. Run either using the demo file or the run script via the following commands
+
 - Run demo.py
 
 ```
