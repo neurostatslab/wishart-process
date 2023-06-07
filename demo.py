@@ -41,7 +41,8 @@ likelihood = models.NormalConditionalLikelihood()
 with numpyro.handlers.seed(rng_seed=seed):
     mu = gp.sample(x)
     sigma = wp.sample(x)
-    y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(num_samples)])
+    data = [likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(num_samples)]
+    y = jnp.stack(data)
 
 visualizations.visualize_pc(
     mu[:,None],sigma,pc=y.reshape(y.shape[0]*y.shape[1],-1)
@@ -56,6 +57,7 @@ varfam = inference.VariationalNormal(joint.model)
 adam = optim.Adam(1e-1)
 key = jax.random.PRNGKey(seed)
 varfam.infer(adam,x,y,n_iter=20000,key=key)
+joint.update_params(varfam.posterior)
 
 # %% Visualization
 visualizations.plot_loss(
@@ -63,8 +65,9 @@ visualizations.plot_loss(
 )
 
 # %%
+posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
 with numpyro.handlers.seed(rng_seed=seed):
-    _,mu_hat,sigma_hat = varfam.sample()
+    mu_hat, sigma_hat, F_hat = posterior.sample(x)
 
 visualizations.visualize_pc(
     mu_hat[:,None],sigma_hat,pc=y.reshape(y.shape[0]*y.shape[1],-1)
