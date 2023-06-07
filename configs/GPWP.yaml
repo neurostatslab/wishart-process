@@ -12,12 +12,13 @@ dataset_params:
   # rank: 2
   epsilon: 1. #.1 # scale matrix is epsilon*np.eye(D)
 
-  train_trial_prop: .8 # proportion of training and testing trials per condition
-  train_condition_prop: .9 # proportion of training and testing conditions
+  train_trial_prop: .1 # proportion of training and testing trials per condition
+  train_condition_prop: 1. # proportion of training and testing conditions
 
   seed: 0 # generative seed (can be different from inference seed)
 
-  nu: 2 # degrees of freedom for the generative model
+  prior: WishartProcess
+  nu: 4 # degrees of freedom for the generative model
   
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
@@ -26,7 +27,7 @@ dataset_params:
       sigma: 1.
       normalizer: 360
 
-  wp_sample_diag: 1.
+  wp_sample_diag: .1
 
   wp_kernel_diag: 0.001
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
@@ -40,8 +41,9 @@ dataset_params:
 # model parameters
 # ================
 model_params:
-  seed: 0 # inference seed
-  nu: 2 # degrees of freedom for the inference model
+  prior: WishartProcess
+  seed: 1 # inference seed
+  nu: 4 # degrees of freedom for the inference model
 
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
@@ -50,7 +52,7 @@ model_params:
       sigma: 1.
       normalizer: 360
 
-  wp_sample_diag: 1.
+  wp_sample_diag: .1
   
   optimize_L: True
   wp_kernel_diag: 0.001

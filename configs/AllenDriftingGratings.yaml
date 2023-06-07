@@ -9,7 +9,7 @@ dataset_params:
   train_trial_prop: .9
   train_condition_prop: 1.
   seed: 0
-  representation: direction
+  # representation: direction
 
 model_params:
   seed: 1

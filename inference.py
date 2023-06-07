@@ -41,7 +41,10 @@ class VariationalDelta(Variational):
         self.model = model
         
     def sample(self):
-        L = self.posterior['L']
+        F, G = self.posterior['F_auto_loc'], self.posterior['G_auto_loc']
+        return F, G
+
+    def mode(self):
         F, G = self.posterior['F_auto_loc'], self.posterior['G_auto_loc']
         return F, G
     
@@ -59,3 +62,7 @@ class VariationalNormal(Variational):
         F = numpyro.sample('F_post',dist.Normal(F_mean,F_scale))
         G = numpyro.sample('mu_post',dist.Normal(G_mean,G_scale))
         return F, G
+    
+    def mode(self):
+        F_mean, G_mean = self.posterior['F_auto_loc'], self.posterior['G_auto_loc']
+        return F_mean, G_mean

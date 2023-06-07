@@ -181,7 +181,11 @@ class NeuralTuningProcessLoader:
         V = get_scale_matrix(params)
 
         nt = models.NeuralTuningProcess(num_dims=params['D'],spread=params['spread'],amp=params['amp'])
-        wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V)
+        wp = eval('models.'+params['prior'])(
+            kernel=wp_kernel,nu=params['nu'],V=V,
+            diag_scale=params['wp_sample_diag']
+        )
+        # wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V)
 
         # %% Likelihood
         likelihood = eval('models.'+params['likelihood']+'()')

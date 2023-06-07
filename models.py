@@ -48,7 +48,7 @@ class WishartProcess:
         sigma = self.f2sigma(F,L)
 
         return sigma
-
+    
     
     def posterior(self, X, Y, sigma, x):
         # TODO: If x is a subset of X, return that subset of Y
@@ -71,6 +71,22 @@ class WishartProcess:
         sigma = self.f2sigma(F)
 
         return F, sigma
+    
+    def posterior_mode(self, X, Y, sigma, x):
+        # TODO: If x is a subset of X, return that subset of Y
+        if jnp.array_equal(X,x): return Y, sigma
+
+        K_X_x  = self.evaluate_kernel(x,X)
+        K_x_x  = self.evaluate_kernel(x,x)
+        K_X_X  = self.evaluate_kernel(X,X)
+
+        Ki   = jnp.linalg.inv(K_X_X)
+        
+        F = jnp.einsum('ij,mnj->mni',(K_X_x.T@Ki),Y)
+        sigma = self.f2sigma(F)
+
+        return F, sigma
+
     
     def log_prob(self, x, F):
         # TODO: input to this fn must be sigma, not F
@@ -141,6 +157,22 @@ class WishartGammaProcess:
 
         return F, sigma
     
+    def posterior_mode(self, X, Y, sigma, x):
+        # TODO: If x is a subset of X, return that subset of Y
+        if jnp.array_equal(X,x): return Y, sigma
+
+        K_X_x  = self.evaluate_kernel(x,X)
+        K_x_x  = self.evaluate_kernel(x,x)
+        K_X_X  = self.evaluate_kernel(X,X)
+
+        Ki   = jnp.linalg.inv(K_X_X)
+        
+        F = jnp.einsum('ij,mnj->mni',(K_X_x.T@Ki),Y)
+
+        sigma = self.f2sigma(F)
+
+        return F, sigma
+    
     def log_prob(self, x, F):
         # TODO: input to this fn must be sigma, not F
         N = x.shape[0]
@@ -187,6 +219,19 @@ class GaussianProcess:
         ).squeeze().T
         
         return G_new
+    
+    def posterior_mode(self, X, Y, x):
+        # TODO: If x is a subset of X, return that subset of Y
+        if jnp.array_equal(X,x): return Y
+
+        K_X_x  = self.evaluate_kernel(x,X)
+        K_x_x  = self.evaluate_kernel(x,x)
+        K_X_X  = self.evaluate_kernel(X,X)
+        
+        Ki   = jnp.linalg.inv(K_X_X)
+        G = jnp.einsum('ij,jm->mi',(K_X_x.T@Ki),Y)
+        
+        return G
     
     def log_prob(self, x, G):
         N = x.shape[0]
@@ -304,6 +349,15 @@ class NormalGaussianWishartPosterior:
         self.joint = joint
         self.posterior = posterior
         self.x = x
+
+    def mode(self,x):
+        F,G = self.posterior.mode()
+        sigma = self.joint.wp.f2sigma(F)
+
+        mu_ = self.joint.gp.posterior_mode(self.x, G.squeeze().T, x)
+        F_, sigma_ = self.joint.wp.posterior_mode(self.x, F, sigma, x) 
+
+        return mu_, sigma_, F_
 
     def sample(self, x):
         F,G = self.posterior.sample()

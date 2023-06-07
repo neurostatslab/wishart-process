@@ -70,7 +70,8 @@ if __name__ == '__main__':
 
     wp_sample_diag = model_params['wp_sample_diag'] if 'wp_sample_diag' in model_params else 1e0
     # TODO: Wishart vs. WishartGamma should be a parameter
-    wp = models.WishartGammaProcess(
+    
+    wp = eval('models.'+model_params['prior'])(
         kernel=wp_kernel,nu=nu,
         V=empirical+wp_sample_diag*jnp.eye(D), optimize_L=optimize_L,
         diag_scale=wp_sample_diag
@@ -204,10 +205,10 @@ if __name__ == '__main__':
         for key in compared.keys():
             lpp[key] = likelihood.log_prob(y_test['x'],mu_empirical,compared[key].transpose(2,0,1)).flatten()
         
-        del lpp['wishart']
+        # del lpp['wishart']
         if len(x_test) > 0:
-            lpp['w test ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat, sigma_test_hat).flatten()
-        lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
+            lpp['wishart ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat, sigma_test_hat).flatten()
+        # lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
         if hasattr(dataloader,'mu') and dataloader.mu is not None:
             lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
 
