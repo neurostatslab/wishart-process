@@ -8,10 +8,11 @@ import jax.numpy as jnp
 from sklearn.covariance import LedoitWolf
 from sklearn.covariance import GraphicalLasso
 from sklearn.covariance import EmpiricalCovariance
+from sklearn.decomposition import FactorAnalysis
 
 # %%
 
-def compare(y,prec=False):
+def compare(y,prec=False,params={}):
     result = {}
 
     try:
@@ -44,7 +45,18 @@ def compare(y,prec=False):
                 EmpiricalCovariance().fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
             ], axis=-1)
     except: pass
-
+    try:
+        if prec:
+            result['fa'] = jnp.stack([
+                FactorAnalysis(n_components=params['n_components']).fit(y[:, i, :]).get_precision() for i in range(y.shape[1])
+            ], axis=-1)
+        else:
+            result['fa'] = jnp.stack([
+                FactorAnalysis(n_components=params['n_components']).fit(y[:, i, :]).get_covariance() for i in range(y.shape[1])
+            ], axis=-1)
+    except: pass
+    
+    
     return result
 
 def evaluate(methods,sigma,ord=2,prec=False):

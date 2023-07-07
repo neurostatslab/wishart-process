@@ -6,18 +6,18 @@ dataset_params:
   name: GPWPLoader
   D: 100 # dimension/number of neurons
   M: 40 # number of conditions
-  N: 10 # number of trials per condition
+  N: 5 # number of trials per condition
   
   scale_type: diag
   # rank: 2
   epsilon: 1. #.1 # scale matrix is epsilon*np.eye(D)
 
-  train_trial_prop: .1 # proportion of training and testing trials per condition
+  train_trial_prop: .9 # proportion of training and testing trials per condition
   train_condition_prop: 1. # proportion of training and testing conditions
 
   seed: 0 # generative seed (can be different from inference seed)
 
-  prior: WishartProcess
+  prior: WishartGammaProcess
   nu: 4 # degrees of freedom for the generative model
   
   gp_kernel_diag: 0.001
@@ -41,7 +41,7 @@ dataset_params:
 # model parameters
 # ================
 model_params:
-  prior: WishartProcess
+  prior: WishartGammaProcess
   seed: 1 # inference seed
   nu: 4 # degrees of freedom for the inference model
 

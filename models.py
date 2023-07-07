@@ -278,7 +278,7 @@ class PoissonConditionalLikelihood:
         # rate = numpyro.param('rate', self.rate)
 
         G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
-        Y = numpyro.sample('y',dist.Poisson(jnp.exp(G[ind,...]+rate[None])).to_event(1),obs=y)
+        Y = numpyro.sample('y',dist.Poisson(jax.nn.softplus(G[ind,...]+rate[None])).to_event(1),obs=y)
         
         self.G = G
         return Y
@@ -287,7 +287,7 @@ class PoissonConditionalLikelihood:
         # TODO: sample from G, the input to this fn must be only Y
         LPG = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(G)
         # jax.nn.softplus
-        LPY = dist.Poisson(jnp.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y)
+        LPY = dist.Poisson(jax.nn.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y)
         
         return LPG + LPY
     
@@ -349,6 +349,23 @@ class NormalGaussianWishartPosterior:
         self.joint = joint
         self.posterior = posterior
         self.x = x
+
+    def mean_stat(self,fun,x,vi_samples=1,y_samples=100):
+        '''returns monte carlo estimate of a function expectation
+        '''
+
+        ys = []
+
+        for _ in range(vi_samples):
+            F,G = self.posterior.sample()
+            sigma = self.joint.wp.f2sigma(F)
+            mu_ = self.joint.gp.posterior(self.x, G.squeeze().T, x)
+            _, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x)
+            for _ in range(y_samples):
+                y = self.joint.likelihood.sample(mu_,sigma_)
+                ys.append(y[0,0])
+        
+        return jnp.array([fun(y) for y in ys]).mean(0)
 
     def mode(self,x):
         F,G = self.posterior.mode()

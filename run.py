@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
 
     if 'plot_box' in visualization_params:
-        compared = evaluation.compare(y,prec=prec)
+        compared = evaluation.compare(y,prec=prec,params={'n_components':model_params['nu']})
         compared['grand-empirical'] = jnp.repeat(empirical[:,:,None],y.shape[1],2)
         compared['wishart'] = sigma_hat.transpose(1,2,0)
         
