@@ -274,8 +274,8 @@ class PoissonConditionalLikelihood:
         self.rate = jnp.array(rate)
 
     def sample(self,mu,sigma,ind=None,y=None):
-        rate = self.rate
-        # rate = numpyro.param('rate', self.rate)
+        # rate = self.rate
+        rate = numpyro.param('rate', self.rate)
 
         G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
         Y = numpyro.sample('y',dist.Poisson(jax.nn.softplus(G[ind,...]+rate[None])).to_event(1),obs=y)

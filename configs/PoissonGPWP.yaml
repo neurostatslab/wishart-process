@@ -65,7 +65,7 @@ model_params:
 
   likelihood: PoissonConditionalLikelihood # likelihood model
   likelihood_params:
-    rate: [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
+    rate: [.1,.1,.1,.1,.1,.1,.1,.1,.1,.1]
       
 # inference parameters
 # ====================
