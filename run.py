@@ -38,7 +38,7 @@ if __name__ == '__main__':
     args = get_args()
     with open(args.config, 'r') as stream: pm = yaml.safe_load(stream)
 
-    dataset_params, model_params, variational_params, visualization_params = pm['dataset_params'], pm['model_params'], pm['variational_params'], pm['visualization_params']
+    dataset_params, model_params, variational_params, visualization_params, comparison_params = pm['dataset_params'], pm['model_params'], pm['variational_params'], pm['visualization_params'], pm['comparison_params']
 
     seed = pm['model_params']['seed']
     file = args.output
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
 
     if 'plot_box' in visualization_params:
-        compared = evaluation.compare(y,prec=prec,params={'n_components':model_params['nu']})
+        compared = evaluation.compare(y,prec=prec,params=comparison_params)
         compared['grand-empirical'] = jnp.repeat(empirical[:,:,None],y.shape[1],2)
         compared['wishart'] = sigma_hat.transpose(1,2,0)
         

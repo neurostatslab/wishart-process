@@ -419,7 +419,6 @@ class NormalGaussianWishartPosterior:
             
             for _ in range(y_samples):
                 y = self.joint.likelihood.sample(mu_,sigma_)
-                # print(y.shape)
                 ys.append(y[0])
         
         return jnp.array([fun(y) for y in ys]).mean(0)

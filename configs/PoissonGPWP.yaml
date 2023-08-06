@@ -78,6 +78,13 @@ variational_params:
     type: Adam # Adam/SGD
     step_size: 0.1
 
+# comparison parameters
+# =====================
+comparison_params:
+  n_components: 2 # Factor Analysis comparison
+  shrinkage: 0.01 # PoSCE comparison
+  alpha: 0.1 # Graphical Lasso comparison
+
 # visualization parameters
 # ========================
 visualization_params:

@@ -31,11 +31,11 @@ def compare(y,prec=False,params={}):
     try:
         if prec:
             result['lasso'] = jnp.stack([
-                GraphicalLasso(alpha=.1).fit(y[:, i, :]).precision_ for i in range(y.shape[1])
+                GraphicalLasso(alpha=params['alpha']).fit(y[:, i, :]).precision_ for i in range(y.shape[1])
             ], axis=-1)
         else:
             result['lasso'] = jnp.stack([
-                GraphicalLasso(alpha=.1).fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
+                GraphicalLasso(alpha=params['alpha']).fit(y[:, i, :]).covariance_ for i in range(y.shape[1])
             ], axis=-1)
     except: pass
     try:
