@@ -128,3 +128,24 @@ def evaluate_var_smoothness(x,y,methods):
                 y_reshaped['empirical'].flatten()
             )**2))
         return mse
+
+
+# %%
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.sparse import linalg
+
+def fisher_information(x,mu_prime,sigma):
+    fi = np.array([
+        mu_prime[:,[i]].T@np.linalg.inv(sigma[i])@mu_prime[:,[i]] for i in range(len(x))
+    ]).squeeze()
+    
+    return fi
+
+def top_eig_overlap(x,mu_prime,sigma):
+    overlap = np.array([abs(cosine_similarity(
+            mu_prime[:,[i]].T,
+            linalg.eigsh(np.array(sigma[i]),1)[1].T
+        )) for i in range(len(x))
+    ]).squeeze()
+
+    return overlap
