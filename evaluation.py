@@ -59,7 +59,7 @@ def compare(y,prec=False,params={}):
             ], axis=-1)
     except: pass
     try:
-        posce = PopulationShrunkCovariance(shrinkage=1e-2)
+        posce = PopulationShrunkCovariance(shrinkage=params['shrinkage'])
         posce.fit(y.transpose(1,0,2))
         shrunk_connectivities = posce.transform(y.transpose(1,0,2))
         if prec:

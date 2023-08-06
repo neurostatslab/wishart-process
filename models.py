@@ -337,10 +337,6 @@ class PoissonConditionalLikelihood:
             LPY.append(dist.Poisson(jax.nn.softplus(G+self.rate[None])).to_event(1).log_prob(Y)
             )
 
-            # G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
-            # LPG = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(G)
-            # LPY.append(dist.Poisson(jax.nn.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y))
-
         return jax.nn.logsumexp(jnp.stack(LPY),axis=0) - jnp.log(n_samples)
     
 
