@@ -86,7 +86,21 @@ class WishartProcess:
         sigma = self.f2sigma(F)
 
         return F, sigma
+    
+    def posterior_derivative(self, X, Y, x_new):
+        K_X_X  = self.evaluate_kernel(X,X)
+        Ki   = jnp.linalg.inv(K_X_X)
 
+        def sigma(x):
+            K_X_x  = self.evaluate_kernel(x,X)
+            F = jnp.einsum('ij,mnj->mni',(K_X_x.T@Ki),Y)
+            sigma = self.f2sigma(F)
+            return sigma
+
+        grad = vmap(lambda x: jax.jacfwd(sigma)(x[None]))(x_new).squeeze().T
+
+        return grad
+    
     
     def log_prob(self, x, F):
         # TODO: input to this fn must be sigma, not F
@@ -173,6 +187,21 @@ class WishartGammaProcess:
 
         return F, sigma
     
+    def posterior_derivative(self, X, Y, x_new):
+        K_X_X  = self.evaluate_kernel(X,X)
+        Ki   = jnp.linalg.inv(K_X_X)
+
+        def sigma(x):
+            K_X_x  = self.evaluate_kernel(x,X)
+            F = jnp.einsum('ij,mnj->mni',(K_X_x.T@Ki),Y)
+            sigma = self.f2sigma(F)
+            return sigma
+        
+
+        grad = vmap(lambda x: jax.jacfwd(sigma)(x[None]))(x_new).squeeze().T
+
+        return grad
+    
     def log_prob(self, x, F):
         # TODO: input to this fn must be sigma, not F
         N = x.shape[0]
@@ -233,6 +262,17 @@ class GaussianProcess:
         
         return G
     
+    def posterior_derivative(self, X, Y, x_new):
+        K_X_X  = self.evaluate_kernel(X,X)
+        Ki = jnp.linalg.inv(K_X_X)
+        def f(x):
+            K_X_x  = self.evaluate_kernel(x,X)
+            f = jnp.einsum('ij,jm->mi',(K_X_x.T@Ki),Y)
+            return f
+
+        grad = vmap(lambda x: jax.jacrev(f)(x[None]))(x_new).squeeze().T
+        return grad
+    
     def log_prob(self, x, G):
         N = x.shape[0]
         c_g = self.evaluate_kernel(x,x)
@@ -275,21 +315,33 @@ class PoissonConditionalLikelihood:
 
     def sample(self,mu,sigma,ind=None,y=None):
         # rate = self.rate
+        sample_shape = () if y is None else (len(y),)
+        
         rate = numpyro.param('rate', self.rate)
 
-        G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
-        Y = numpyro.sample('y',dist.Poisson(jax.nn.softplus(G[ind,...]+rate[None])).to_event(1),obs=y)
-        
-        self.G = G
+        G = numpyro.sample(
+            'g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),sample_shape=sample_shape
+        )
+        Y = numpyro.sample(
+            'y',dist.Poisson(jax.nn.softplus(G+rate[None])).to_event(1),obs=y
+        )
         return Y
     
-    def log_prob(self,G,Y,mu,sigma,ind=None):
-        # TODO: sample from G, the input to this fn must be only Y
-        LPG = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(G)
-        # jax.nn.softplus
-        LPY = dist.Poisson(jax.nn.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y)
-        
-        return LPG + LPY
+    def log_prob(self,Y,mu,sigma,ind=None,n_samples=10):
+        sample_shape = (len(Y),)
+        LPY = []
+        for i in range(n_samples):
+            G = numpyro.sample(
+                'g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),sample_shape=sample_shape
+            )
+            LPY.append(dist.Poisson(jax.nn.softplus(G+self.rate[None])).to_event(1).log_prob(Y)
+            )
+
+            # G = numpyro.sample('g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]))
+            # LPG = dist.MultivariateNormal(mu[ind,...],sigma[ind,...]).log_prob(G)
+            # LPY.append(dist.Poisson(jax.nn.softplus(G[ind,...]+self.rate[None])).to_event(1).log_prob(Y))
+
+        return jax.nn.logsumexp(jnp.stack(LPY),axis=0) - jnp.log(n_samples)
     
 
 # %%
@@ -350,6 +402,13 @@ class NormalGaussianWishartPosterior:
         self.posterior = posterior
         self.x = x
 
+    def derivative(self,x):
+        F,G = self.posterior.sample()
+
+        mu_ = self.joint.gp.posterior_derivative(self.x, G.squeeze().T, x)
+        sigma_ = self.joint.wp.posterior_derivative(self.x, F, x) 
+        return mu_, sigma_ 
+
     def mean_stat(self,fun,x,vi_samples=1,y_samples=100):
         '''returns monte carlo estimate of a function expectation
         '''
@@ -361,9 +420,11 @@ class NormalGaussianWishartPosterior:
             sigma = self.joint.wp.f2sigma(F)
             mu_ = self.joint.gp.posterior(self.x, G.squeeze().T, x)
             _, sigma_ = self.joint.wp.posterior(self.x, F, sigma, x)
+            
             for _ in range(y_samples):
                 y = self.joint.likelihood.sample(mu_,sigma_)
-                ys.append(y[0,0])
+                # print(y.shape)
+                ys.append(y[0])
         
         return jnp.array([fun(y) for y in ys]).mean(0)
 

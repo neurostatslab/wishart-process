@@ -10,6 +10,9 @@ from sklearn.covariance import GraphicalLasso
 from sklearn.covariance import EmpiricalCovariance
 from sklearn.decomposition import FactorAnalysis
 
+from posce import PopulationShrunkCovariance
+from nilearn.connectome import vec_to_sym_matrix
+
 # %%
 
 def compare(y,prec=False,params={}):
@@ -54,6 +57,15 @@ def compare(y,prec=False,params={}):
             result['fa'] = jnp.stack([
                 FactorAnalysis(n_components=params['n_components']).fit(y[:, i, :]).get_covariance() for i in range(y.shape[1])
             ], axis=-1)
+    except: pass
+    try:
+        posce = PopulationShrunkCovariance(shrinkage=1e-2)
+        posce.fit(y.transpose(1,0,2))
+        shrunk_connectivities = posce.transform(y.transpose(1,0,2))
+        if prec:
+            result['posce'] = jnp.stack([jnp.linalg.inv(vec_to_sym_matrix(c)) for c in shrunk_connectivities],axis=-1)
+        else:
+            result['posce'] = jnp.stack([vec_to_sym_matrix(c) for c in shrunk_connectivities],axis=-1)
     except: pass
     
     
