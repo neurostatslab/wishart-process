@@ -3,13 +3,13 @@
 load: False
 
 dataset_params:
-  name: GPWPLoader
-  D: 10 # dimension/number of neurons
+  name: PoissonGPWPLoader
+  D: 20 # dimension/number of neurons
   M: 30 # number of conditions
   N: 50 # number of trials per condition
   
   scale_type: exp_decay_eig
-  epsilon: .1 #.1 # scale matrix is epsilon*np.eye(D)
+  epsilon: .01 #.1 # scale matrix is epsilon*np.eye(D)
 
   train_trial_prop: .8 # proportion of training and testing trials per condition
   train_condition_prop: 1 # proportion of training and testing conditions
@@ -17,9 +17,9 @@ dataset_params:
   seed: 1 # generative seed (can be different from inference seed)
 
   prior: WishartGammaProcess
-  nu: 2 # degrees of freedom for the generative model
+  nu: 4 # degrees of freedom for the generative model
   
-  gp_kernel_diag: 0.001
+  gp_kernel_diag: 0.1
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
       sigma: 1.
@@ -36,8 +36,6 @@ dataset_params:
       normalizer: 360
 
   likelihood: PoissonConditionalLikelihood
-  likelihood_params:
-    rate: [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
           
 # model parameters
 # ================
@@ -45,9 +43,9 @@ model_params:
   seed: 0 # inference seed
 
   prior: WishartGammaProcess
-  nu: 2 # degrees of freedom for the inference model
+  nu: 4 # degrees of freedom for the inference model
 
-  gp_kernel_diag: 0.001
+  gp_kernel_diag: 0.1
   gp_kernel: # inference gaussian process kernel parameters
     - type: periodic 
       sigma: 1.
@@ -63,9 +61,7 @@ model_params:
       scale: 1.
       normalizer: 360
 
-  likelihood: PoissonConditionalLikelihood # likelihood model
-  likelihood_params:
-    rate: [.1,.1,.1,.1,.1,.1,.1,.1,.1,.1]
+  likelihood: NormalConditionalLikelihood # likelihood model
       
 # inference parameters
 # ====================
@@ -76,19 +72,18 @@ variational_params:
 
   optimizer:
     type: Adam # Adam/SGD
-    step_size: 0.1
+    step_size: 0.005
 
 # comparison parameters
 # =====================
 comparison_params:
-  n_components: 2 # Factor Analysis comparison
-  shrinkage: 0.01 # PoSCE comparison
-  alpha: 0.1 # Graphical Lasso comparison
+#   n_components: 2 # Factor Analysis comparison
+#   shrinkage: 0.01 # PoSCE comparison
+#   alpha: 0.1 # Graphical Lasso comparison
 
 # visualization parameters
 # ========================
 visualization_params:
-  - plot_tuning # plot tuning of data to training conditions
   - visualize_pc # plot point clouds in the PC space
   - plot_loss # plot loss
   - plot_box # plot log likelihood and operator norm comparisons

@@ -297,6 +297,9 @@ class NeuralTuningProcess:
 
 # %%
 class NormalConditionalLikelihood:
+    def __init__(self,D):
+        self.D = D
+
     def sample(self,mu,sigma,ind=None,y=None):
         Y = numpyro.sample(
             'y',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),
@@ -310,8 +313,15 @@ class NormalConditionalLikelihood:
     
 # %%
 class PoissonConditionalLikelihood:
-    def __init__(self,rate):
-        self.rate = jnp.array(rate)
+    def __init__(self,D):
+        self.gain_fn = lambda x: jax.nn.softplus(x)
+        self.gain_inverse_fn = lambda x: jnp.log(jnp.exp(x)-1)
+
+        self.D = D
+        self.rate = jnp.ones(D)
+    
+    def initialize_rate(self,y):
+        self.rate = self.gain_inverse_fn(y.mean(0).mean(0))
 
     def sample(self,mu,sigma,ind=None,y=None):
         # rate = self.rate
@@ -322,8 +332,9 @@ class PoissonConditionalLikelihood:
         G = numpyro.sample(
             'g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),sample_shape=sample_shape
         )
+        
         Y = numpyro.sample(
-            'y',dist.Poisson(jax.nn.softplus(G+rate[None])).to_event(1),obs=y
+            'y',dist.Poisson(self.gain_fn(G+rate[None])).to_event(1),obs=y
         )
         return Y
     
@@ -334,7 +345,7 @@ class PoissonConditionalLikelihood:
             G = numpyro.sample(
                 'g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),sample_shape=sample_shape
             )
-            LPY.append(dist.Poisson(jax.nn.softplus(G+self.rate[None])).to_event(1).log_prob(Y)
+            LPY.append(dist.Poisson(self.gain_fn(G+self.rate[None])).to_event(1).log_prob(Y)
             )
 
         return jax.nn.logsumexp(jnp.stack(LPY),axis=0) - jnp.log(n_samples)

@@ -13,6 +13,7 @@ from functools import reduce, partial
 from labrepo.datasets.allen_brain_observatory import AllenBrainData
 
 import models
+import inference
 
 from scipy.linalg import block_diag
 import numpy as np
@@ -78,12 +79,13 @@ class AllenStaticGratingsLoader:
         ]).transpose(2,0,1)
 
         y = jnp.sqrt(y)
+        # y = y - y.mean(0).mean(0)[None,None]
 
         x = jnp.array([list(conditions[i].values()) for i in range(len(counts)) 
             if eval(params['selector'],{'conditions':conditions, 'i':i})
         ])
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test,_,_,_,_ = split_data(
             x,y,params['train_trial_prop'],params['train_condition_prop'],
             seed=params['seed'],mu=None,sigma=None,F=None
         )
@@ -119,12 +121,12 @@ class MonkeyReachLoader:
         targetOn = targetOn[valid]
 
         car2polar = lambda z: np.array((
-            np.rad2deg(np.arctan2(z[:,0], z[:,1])),
-            np.sqrt(z[:,0]**2+z[:,1]**2)
+            np.around(np.rad2deg(np.arctan2(z[:,0], z[:,1])),-1),
+            np.around(np.sqrt(z[:,0]**2+z[:,1]**2),0)
         )).T
         
         if params['representation'] == 'cartesian': targetPos = targetPos[valid,:2]
-        if params['representation'] == 'polar': targetPos = np.around(car2polar(targetPos[valid,:2]),0)
+        if params['representation'] == 'polar': targetPos = car2polar(targetPos[valid,:2])
 
         spikes = [spikes[i] for i in valid]
 
@@ -145,8 +147,9 @@ class MonkeyReachLoader:
 
         # diff = (np.diff(y.var(0),axis=0)**2).sum(1)
         # y = y[:,:,np.argsort(diff)[:10]]
-
-        y = np.sqrt(y)
+        if 'sqrt_transform' in params.keys():
+            y = np.sqrt(y)
+        # y = y - y.mean(0).mean(0)[None,None]
 
 
         if params['representation'] == 'cartesian':  conditions = [{'x':x[i,0],'y':x[i,1]} for i in range(len(x))]
@@ -160,7 +163,7 @@ class MonkeyReachLoader:
         x = x[selected]
         y = y[:,selected,:]
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test,_,_,_,_ = split_data(
             x,y,params['train_trial_prop'],params['train_condition_prop'],
             seed=params['seed'],mu=None,sigma=None,F=None
         )
@@ -195,7 +198,7 @@ class NeuralTuningProcessLoader:
             sigma = wp.sample(jnp.hstack((x)))
             y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(params['N'])])
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test,_,_,_,_ = split_data(
             x,y,params['train_trial_prop'],params['train_condition_prop'],
             seed=params['seed'],mu=mu,sigma=sigma,F=wp.F
         )
@@ -221,6 +224,58 @@ def get_scale_matrix(params):
             params['D'],seed=params['seed']
         )
         
+
+
+# %%
+class PoissonGPWPLoader():
+    def __init__(self,params):
+        x = jnp.linspace(0,360,params['M'],endpoint=False)
+        # %% Prior
+        gp_kernel = get_kernel(params['gp_kernel'],params['gp_kernel_diag'])
+        wp_kernel = get_kernel(params['wp_kernel'],params['wp_kernel_diag'])
+
+        V = get_scale_matrix(params)
+        self.V = V
+
+        diag_scale = params['wp_sample_diag'] if 'wp_sample_diag' in params else 1e-1
+
+        gp = models.GaussianProcess(kernel=gp_kernel,num_dims=params['D'])
+        wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V,diag_scale=diag_scale)
+
+        # %% Likelihood
+        likelihood = eval('models.'+params['likelihood'])(params['D'])
+
+        with numpyro.handlers.seed(rng_seed=params['seed']):
+            mu_g = gp.sample(x)
+            sigma_g = wp.sample(x)
+            y = jnp.stack([likelihood.sample(mu_g,sigma_g,ind=jnp.arange(len(mu_g))) for i in range(params['N'])])
+
+
+        joint = models.JointGaussianWishartProcess(gp,wp,likelihood) 
+        true_post = inference.VariationalDelta(joint.model)
+        true_post.posterior = {'G_auto_loc': mu_g.T[:,None], 'F_auto_loc':wp.F}
+        true_posterior = models.NormalGaussianWishartPosterior(joint,true_post,x)
+        with numpyro.handlers.seed(rng_seed=params['seed']):
+            mu = true_posterior.mean_stat(lambda x: x, x)
+            sigma = true_posterior.mean_stat(lambda x: jnp.einsum('cd,ck->cdk',x-mu,x-mu), x)
+
+
+        self.x,self.y,self.mu,self.sigma,\
+        self.x_test,self.y_test,self.mu_test,self.sigma_test,\
+        self.F,self.F_test,self.mu_g,self.mu_g_test,self.sigma_g,self.sigma_g_test = split_data(
+            x[:,None],y,params['train_trial_prop'],params['train_condition_prop'],
+            seed=params['seed'],mu=mu,sigma=sigma,F=wp.F,mu_g=mu_g,sigma_g=sigma_g
+        )
+        self.x = self.x.squeeze()
+        self.x_test = self.x_test.squeeze()
+
+        self.likelihood = likelihood
+
+    def load_data(self):
+        return self.x, self.y
+    
+    def load_test_data(self):
+        return self.x_test, self.y_test
     
 # %%
 class GPWPLoader():
@@ -239,8 +294,7 @@ class GPWPLoader():
         wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V,diag_scale=diag_scale)
 
         # %% Likelihood
-        if 'likelihood_params' in params: likelihood = eval('models.'+params['likelihood']+'(**params[\'likelihood_params\'])')
-        else: likelihood = eval('models.'+params['likelihood']+'()')
+        likelihood = eval('models.'+params['likelihood'])(params['D'])
 
         with numpyro.handlers.seed(rng_seed=params['seed']):
             mu = gp.sample(x)
@@ -248,7 +302,7 @@ class GPWPLoader():
             y = jnp.stack([likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(params['N'])])
         
 
-        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test = split_data(
+        self.x,self.y,self.mu,self.sigma,self.x_test,self.y_test,self.mu_test,self.sigma_test,self.F,self.F_test,_,_,_,_ = split_data(
             x[:,None],y,params['train_trial_prop'],params['train_condition_prop'],
             seed=params['seed'],mu=mu,sigma=sigma,F=wp.F
         )
@@ -265,7 +319,7 @@ class GPWPLoader():
 
 def split_data(
         x,y,train_trial_prop,train_condition_prop,seed,
-        mu=None,sigma=None,F=None
+        mu=None,sigma=None,F=None,mu_g=None,sigma_g=None
     ):
         N,M,D = y.shape
         
@@ -298,15 +352,21 @@ def split_data(
 
         if mu is not None:  mu_test,mu_train = mu[test_conditions,:],mu[train_conditions,:]
         else: mu_test,mu_train = None,None
+
+        if mu_g is not None:  mu_g_test,mu_g_train = mu_g[test_conditions,:],mu_g[train_conditions,:]
+        else: mu_g_test,mu_g_train = None,None
         
         if sigma is not None:  sigma_test,sigma_train = sigma[test_conditions,:,:],sigma[train_conditions,:,:]
         else: sigma_test,sigma_train = None,None
 
-        
+        if sigma_g is not None:  sigma_g_test,sigma_g_train = sigma_g[test_conditions,:,:],sigma_g[train_conditions,:,:]
+        else: sigma_g_test,sigma_g_train = None,None
+
         if F is not None:  F_test,F_train = F[:,:,test_conditions],F[:,:,train_conditions]
         else: F_test,F_train = None,None
+
         
-        return x_train,y_train,mu_train,sigma_train,x_test,y_test,mu_test,sigma_test,F_train,F_test
+        return x_train,y_train,mu_train,sigma_train,x_test,y_test,mu_test,sigma_test,F_train,F_test,mu_g_train,mu_g_test,sigma_g_train,sigma_g_test
 
 
 # %%

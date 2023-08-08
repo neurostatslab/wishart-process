@@ -70,17 +70,27 @@ if __name__ == '__main__':
 
     wp_sample_diag = model_params['wp_sample_diag'] if 'wp_sample_diag' in model_params else 1e0
     # TODO: Wishart vs. WishartGamma should be a parameter
+
+    likelihood = eval('models.'+model_params['likelihood'])(D)
+
+    if model_params['likelihood'] == 'PoissonConditionalLikelihood':
+        # Fix this, for real data there's no dataloader.V
+        V = dataloader.V
+    if model_params['likelihood'] == 'NormalConditionalLikelihood':
+        V = empirical+wp_sample_diag*jnp.eye(D)
+    
     
     wp = eval('models.'+model_params['prior'])(
         kernel=wp_kernel,nu=nu,
-        V=empirical+wp_sample_diag*jnp.eye(D), optimize_L=optimize_L,
+        V=V, optimize_L=optimize_L,
         diag_scale=wp_sample_diag
     )
 
-    if 'likelihood_params' in model_params:
-        likelihood = eval('models.'+model_params['likelihood']+'(**model_params[\'likelihood_params\'])')
-    else:
-        likelihood = eval('models.'+model_params['likelihood']+'()')
+    
+    
+    if model_params['likelihood'] == 'PoissonConditionalLikelihood':
+        likelihood.initialize_rate(y)
+
     joint = models.JointGaussianWishartProcess(gp,wp,likelihood) 
 
     if 'init_gt' in model_params and model_params['init_gt']: 
@@ -88,10 +98,17 @@ if __name__ == '__main__':
             'G':dataloader.mu.T[:,None],
             'F':dataloader.F
         }
-    else: 
-        init = {
-            'G':y.mean(0).T[:,None]
-        }
+    else:
+        if model_params['likelihood'] == 'PoissonConditionalLikelihood':
+            init_G = likelihood.gain_inverse_fn(y.mean(0).T[:,None])-likelihood.rate[:,None,None]
+            init = {
+                'G':init_G,
+                'g':init_G.transpose(1,2,0).repeat(y.shape[0],0),
+            }
+        if model_params['likelihood'] == 'NormalConditionalLikelihood':
+            init = {
+                'G':y.mean(0).T[:,None]
+            }
     # %%
     varfam = eval('inference.'+variational_params['guide'])(
         joint.model,init=init
@@ -114,6 +131,21 @@ if __name__ == '__main__':
         varfam.save(file+'varfam')
 
     x_test, y_test = dataloader.load_test_data()
+
+    posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
+    if model_params['likelihood'] == 'PoissonConditionalLikelihood':
+        with numpyro.handlers.seed(rng_seed=seed):
+            mu_hat = posterior.mean_stat(lambda x: x, x)
+            sigma_hat = posterior.mean_stat(lambda x: jnp.einsum('cd,ck->cdk',x-mu_hat,x-mu_hat), x)
+            if len(x_test) > 0:
+                mu_test_hat = posterior.mean_stat(lambda x: x, x_test)
+                sigma_test_hat = posterior.mean_stat(lambda x: jnp.einsum('cd,ck->cdk',x-mu_test_hat,x-mu_test_hat), x_test)
+        
+    if model_params['likelihood'] == 'NormalConditionalLikelihood':
+        with numpyro.handlers.seed(rng_seed=seed):
+            mu_hat, sigma_hat, F_hat = posterior.sample(x)
+            if len(x_test) > 0:
+                mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
 
     # %% Visualization
     if 'visualize_pc' in visualization_params:
@@ -138,12 +170,6 @@ if __name__ == '__main__':
         )
 
     if 'visualize_pc' in visualization_params:
-        posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
-        with numpyro.handlers.seed(rng_seed=seed):
-            mu_hat, sigma_hat, F_hat = posterior.sample(x)
-            if len(x_test) > 0:
-                mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
-
         visualizations.visualize_pc(
             mu_hat[:,None],sigma_hat,
             pc=y.reshape(y.shape[0]*y.shape[1],-1),
@@ -202,15 +228,30 @@ if __name__ == '__main__':
         # posterior predictive likelihood
         lpp = {}
 
-        for key in compared.keys():
-            lpp[key] = likelihood.log_prob(y_test['x'],mu_empirical,compared[key].transpose(2,0,1)).flatten()
+        if model_params['likelihood'] == 'PoissonConditionalLikelihood':
         
-        # del lpp['wishart']
-        if len(x_test) > 0:
-            lpp['wishart ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat, sigma_test_hat).flatten()
-        # lpp['w test'] = likelihood.log_prob(y_test['x'], mu_hat, sigma_hat).flatten()
-        if hasattr(dataloader,'mu') and dataloader.mu is not None:
-            lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
+            with numpyro.handlers.seed(rng_seed=seed):
+                mu_hat_g, sigma_hat_g, _ = posterior.mode(x)
+
+            with numpyro.handlers.seed(rng_seed=seed):
+                lpp['wishart'] = likelihood.log_prob(y_test['x'],mu_hat_g,sigma_hat_g).flatten()
+                lpp['train'] = likelihood.log_prob(y,dataloader.mu_g,dataloader.sigma_g).flatten()
+
+                if len(x_test) > 0:
+                    with numpyro.handlers.seed(rng_seed=seed):
+                        mu_test_hat_g, sigma_test_hat_g, _ = posterior.mode(x_test)
+                    lpp['wishart ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat_g, sigma_test_hat_g).flatten()
+
+
+        if model_params['likelihood'] == 'NormalConditionalLikelihood':
+            for key in compared.keys():
+                lpp[key] = likelihood.log_prob(y_test['x'],mu_empirical,compared[key].transpose(2,0,1)).flatten()
+            
+            if len(x_test) > 0:
+                lpp['wishart ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat, sigma_test_hat).flatten()
+                
+            if hasattr(dataloader,'mu') and dataloader.mu is not None:
+                lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
 
         visualizations.plot_box(
             lpp,titlestr='Log Posterior Predictive',
@@ -249,10 +290,11 @@ if __name__ == '__main__':
                     )
 
         if hasattr(dataloader,'mu_test') and dataloader.mu_test is not None:
-            visualizations.visualize_pc(
-                dataloader.mu_test[:,None],dataloader.sigma_test,
-                pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
-                save=True,file=file+'test_true'
-            )
+            if len(x_test) > 0:
+                visualizations.visualize_pc(
+                    dataloader.mu_test[:,None],dataloader.sigma_test,
+                    pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
+                    save=True,file=file+'test_true'
+                )
 
 

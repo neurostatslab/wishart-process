@@ -18,7 +18,7 @@ dataset_params:
 
 model_params:
   seed: 2
-  nu: 0
+  nu: 2
   optimize_L: False
 
   gp_kernel_diag: 0.001
@@ -47,7 +47,7 @@ model_params:
       sigma: .1
       normalizer: 120.
 
-  likelihood: NormalConditionalLikelihood # likelihood model
+  likelihood: PoissonConditionalLikelihood # likelihood model
 
 variational_params:
   guide: VariationalNormal # VariationalNormal/VariationalDelta
@@ -56,7 +56,7 @@ variational_params:
 
   optimizer:
     type: Adam
-    step_size: 0.001
+    step_size: 0.005
 
 visualization_params:
   - visualize_pc
