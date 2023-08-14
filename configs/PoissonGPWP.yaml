@@ -61,7 +61,7 @@ model_params:
       scale: 1.
       normalizer: 360
 
-  likelihood: NormalConditionalLikelihood # likelihood model
+  likelihood: PoissonConditionalLikelihood # likelihood model
       
 # inference parameters
 # ====================

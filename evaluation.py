@@ -10,8 +10,8 @@ from sklearn.covariance import GraphicalLasso
 from sklearn.covariance import EmpiricalCovariance
 from sklearn.decomposition import FactorAnalysis
 
-from posce import PopulationShrunkCovariance
-from nilearn.connectome import vec_to_sym_matrix
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.sparse import linalg
 
 # %%
 
@@ -58,16 +58,6 @@ def compare(y,prec=False,params={}):
                 FactorAnalysis(n_components=params['n_components']).fit(y[:, i, :]).get_covariance() for i in range(y.shape[1])
             ], axis=-1)
     except: pass
-    try:
-        posce = PopulationShrunkCovariance(shrinkage=params['shrinkage'])
-        posce.fit(y.transpose(1,0,2))
-        shrunk_connectivities = posce.transform(y.transpose(1,0,2))
-        if prec:
-            result['posce'] = jnp.stack([jnp.linalg.inv(vec_to_sym_matrix(c)) for c in shrunk_connectivities],axis=-1)
-        else:
-            result['posce'] = jnp.stack([vec_to_sym_matrix(c) for c in shrunk_connectivities],axis=-1)
-    except: pass
-    
     
     return result
 
@@ -131,17 +121,10 @@ def evaluate_var_smoothness(x,y,methods):
 
 
 # %%
-from sklearn.metrics.pairwise import cosine_similarity
-from scipy.sparse import linalg
-
-def fisher_information(x,mu_prime,sigma):
-    fi = np.array([
-        mu_prime[:,[i]].T@np.linalg.inv(sigma[i])@mu_prime[:,[i]] for i in range(len(x))
-    ]).squeeze()
-    
-    return fi
-
 def top_eig_overlap(x,mu_prime,sigma):
+    '''The cosine similarity between the top eigenvalue of the covariance
+    and the gradient of the means wrt the input parameter x
+    '''
     overlap = np.array([abs(cosine_similarity(
             mu_prime[:,[i]].T,
             linalg.eigsh(np.array(sigma[i]),1)[1].T
@@ -149,3 +132,18 @@ def top_eig_overlap(x,mu_prime,sigma):
     ]).squeeze()
 
     return overlap
+
+
+# %%
+def fisher_information(x,mu_prime,sigma,sigma_prime=None):
+    '''Computing Fisher Information with and without access to the gradient 
+    of the covariances wrt the input parameter x
+    '''
+    tr = lambda x: jnp.diag(x).sum()
+    sigma_inv = [np.linalg.inv(sigma[i]) for i in range(len(x))]
+    
+    fi = [mu_prime[:,[i]].T@sigma_inv[i]@mu_prime[:,[i]] for i in range(len(x))]
+    if sigma_prime is not None:
+        fi = [fi[i] + .5*tr((sigma_inv[i]@sigma_prime[i])**2) for i in range(len(x))]
+    
+    return np.array(fi)

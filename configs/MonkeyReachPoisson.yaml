@@ -18,14 +18,14 @@ dataset_params:
 
 model_params:
   seed: 2
-  nu: 2
+  nu: 4
   optimize_L: False
 
   gp_kernel_diag: 0.001
   gp_kernel:
     - type: periodic
       scale: 1.
-      sigma: 2.
+      sigma: 1.
       normalizer: 360
 
     - type: RBF
@@ -39,7 +39,7 @@ model_params:
   wp_kernel:
     - type: periodic
       scale: 1.
-      sigma: 3.
+      sigma: 1.
       normalizer: 360
 
     - type: RBF

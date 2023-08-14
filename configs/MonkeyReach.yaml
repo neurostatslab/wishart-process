@@ -10,7 +10,7 @@ dataset_params:
   train_trial_prop: .9
   train_condition_prop: 1.
 
-  sqrt_transform: False
+  sqrt_transform: True
   
   seed: 0
   representation: polar # cartesian or cartesian

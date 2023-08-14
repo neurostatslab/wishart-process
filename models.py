@@ -97,7 +97,7 @@ class WishartProcess:
             sigma = self.f2sigma(F)
             return sigma
 
-        grad = vmap(lambda x: jax.jacfwd(sigma)(x[None]))(x_new).squeeze().T
+        grad = vmap(lambda x: jax.jacrev(sigma)(x[None]))(x_new).squeeze().T
 
         return grad
     
@@ -198,7 +198,7 @@ class WishartGammaProcess:
             return sigma
         
 
-        grad = vmap(lambda x: jax.jacfwd(sigma)(x[None]))(x_new).squeeze().T
+        grad = vmap(lambda x: jax.jacrev(sigma)(x[None]))(x_new).squeeze().T
 
         return grad
     
@@ -332,23 +332,27 @@ class PoissonConditionalLikelihood:
         G = numpyro.sample(
             'g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),sample_shape=sample_shape
         )
-        
+
         Y = numpyro.sample(
             'y',dist.Poisson(self.gain_fn(G+rate[None])).to_event(1),obs=y
         )
         return Y
     
-    def log_prob(self,Y,mu,sigma,ind=None,n_samples=10):
+    def log_prob(self,Y,mu,sigma,n_samples=10):
         sample_shape = (len(Y),)
         LPY = []
+        
         for i in range(n_samples):
             G = numpyro.sample(
-                'g',dist.MultivariateNormal(mu[ind,...],sigma[ind,...]),sample_shape=sample_shape
+                'g',dist.MultivariateNormal(mu,sigma),sample_shape=sample_shape
             )
+            
             LPY.append(dist.Poisson(self.gain_fn(G+self.rate[None])).to_event(1).log_prob(Y)
             )
-
-        return jax.nn.logsumexp(jnp.stack(LPY),axis=0) - jnp.log(n_samples)
+        
+        lp = jax.nn.logsumexp(jnp.stack(LPY),axis=0) - jnp.log(n_samples)
+        
+        return lp
     
 
 # %%

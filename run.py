@@ -235,7 +235,8 @@ if __name__ == '__main__':
 
             with numpyro.handlers.seed(rng_seed=seed):
                 lpp['wishart'] = likelihood.log_prob(y_test['x'],mu_hat_g,sigma_hat_g).flatten()
-                lpp['train'] = likelihood.log_prob(y,dataloader.mu_g,dataloader.sigma_g).flatten()
+                lpp['train'] = dataloader.likelihood.log_prob(y,dataloader.mu_g,dataloader.sigma_g).flatten()
+                lpp['true'] = dataloader.likelihood.log_prob(y_test['x'],dataloader.mu_g,dataloader.sigma_g).flatten()
 
                 if len(x_test) > 0:
                     with numpyro.handlers.seed(rng_seed=seed):
@@ -251,7 +252,10 @@ if __name__ == '__main__':
                 lpp['wishart ho'] = likelihood.log_prob(y_test['x_test'], mu_test_hat, sigma_test_hat).flatten()
                 
             if hasattr(dataloader,'mu') and dataloader.mu is not None:
-                lpp['train'] = likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
+                try: lpp['train'] = dataloader.likelihood.log_prob(y,dataloader.mu,dataloader.sigma).flatten()
+                except: pass
+                try: lpp['true'] = dataloader.likelihood.log_prob(y_test['x'],dataloader.mu,dataloader.sigma).flatten()
+                except: pass
 
         visualizations.plot_box(
             lpp,titlestr='Log Posterior Predictive',
@@ -259,6 +263,26 @@ if __name__ == '__main__':
         )
 
         jnp.save(file+'lpp',lpp)
+    
+    if 'visualize_qda' in visualization_params:
+        # QDA Analysis
+        if model_params['likelihood'] == 'NormalConditionalLikelihood':
+            lpp = {}
+            mu_empirical = y.mean(0)
+
+            correct = {}
+            for c in range(y_test['x'].shape[1]): 
+                for key in compared.keys():
+                    lpp[key] = likelihood.log_prob(
+                        y_test['x'][:,c][:,None],
+                        mu_empirical,compared[key].transpose(2,0,1)
+                    )
+                lpp['true'] = likelihood.log_prob(y_test['x'][:,c][:,None],dataloader.mu,dataloader.sigma)
+                for key in lpp.keys():
+                    if key not in correct.keys(): correct[key] = 0
+                    correct[key] += (lpp[key].argmax(1) == c).sum()
+            
+            jnp.save(file+'correct',correct)
 
     if 'visualize_covariances' in visualization_params:
         for k in compared.keys():
@@ -273,28 +297,34 @@ if __name__ == '__main__':
             )
 
     if 'visualize_pc' in visualization_params and 'x_test' in y_test.keys():
-        with numpyro.handlers.seed(rng_seed=seed):
-            if len(x_test) > 0:
-                for i in range(3):
-                    mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
-                    visualizations.visualize_pc(
-                        mu_test_hat[:,None],sigma_test_hat,
-                        pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
-                        save=True,file=file+'test_inferred_'+str(i)
-                    )
+        try:
+            with numpyro.handlers.seed(rng_seed=seed):
+                if len(x_test) > 0:
+                    for i in range(3):
+                        mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
+                        visualizations.visualize_pc(
+                            mu_test_hat[:,None],sigma_test_hat,
+                            pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
+                            save=True,file=file+'test_inferred_'+str(i)
+                        )
 
-                    visualizations.visualize_pc(
-                        mu_test_hat[:,None],sigma_test_hat,
-                        pc=y.reshape(y.shape[0]*y.shape[1],-1),
-                        save=True,file=file+'test_inferred_train_data_'+str(i)
-                    )
+                        visualizations.visualize_pc(
+                            mu_test_hat[:,None],sigma_test_hat,
+                            pc=y.reshape(y.shape[0]*y.shape[1],-1),
+                            save=True,file=file+'test_inferred_train_data_'+str(i)
+                        )
+        except:
+            pass
 
         if hasattr(dataloader,'mu_test') and dataloader.mu_test is not None:
-            if len(x_test) > 0:
-                visualizations.visualize_pc(
-                    dataloader.mu_test[:,None],dataloader.sigma_test,
-                    pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
-                    save=True,file=file+'test_true'
-                )
-
+            try:
+                if len(x_test) > 0:
+                    visualizations.visualize_pc(
+                        dataloader.mu_test[:,None],dataloader.sigma_test,
+                        pc=y_test['x_test'].reshape(y_test['x_test'].shape[0]*y_test['x_test'].shape[1],-1),
+                        save=True,file=file+'test_true'
+                    )
+            except:
+                pass
+    
 

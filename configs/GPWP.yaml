@@ -5,15 +5,15 @@ load: False
 dataset_params:
   name: GPWPLoader
   D: 100 # dimension/number of neurons
-  M: 40 # number of conditions
-  N: 10 # number of trials per condition
+  M: 80 # number of conditions
+  N: 40 # number of trials per condition
   
   scale_type: diag
   # rank: 2
   epsilon: 1. #.1 # scale matrix is epsilon*np.eye(D)
 
   train_trial_prop: .8 # proportion of training and testing trials per condition
-  train_condition_prop: .8 # proportion of training and testing conditions
+  train_condition_prop: 1. # proportion of training and testing conditions
 
   seed: 0 # generative seed (can be different from inference seed)
 
@@ -33,7 +33,7 @@ dataset_params:
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
       scale: 1
-      sigma: 1. # kernel spread
+      sigma: 3. # kernel spread
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood
@@ -59,7 +59,7 @@ model_params:
   wp_kernel: # infernce wishart process kernel parameters
     - type: periodic      
       scale: 1
-      sigma: 1.
+      sigma: 3.
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood # likelihood model
