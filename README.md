@@ -1,6 +1,6 @@
 # Estimating Noise Correlations in Neural Populations with Wishart Processes
 
-![Estimating Noise Correlations in Neural Populations with Wishart Processes]()
+![github-schematic](https://github.com/neurostatslab/wishart-process/assets/5959554/e628854c-ff14-46c8-95a9-3c1c12373daa)
 
 The signaling capacity of a neural population depends on the scale and orientation of its covariance across trials. Estimating this ``noise'' covariance is challenging---a recording of $N$ neurons has on the order of $N^2$ unknown parameters---and is thought to require a large number of stereotyped trials.
 
@@ -60,11 +60,19 @@ import inference
 kernel_rbf = lambda x, y: jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma**2)))
 
 # Prior models
-gp = models.GaussianProcess(kernel=kernel_rbf,num_dims=1)
-wp = models.WishartGammaProcess(kernel=kernel_rbf,nu=2,V=jnp.eye(D))
+gp = models.GaussianProcess(kernel=kernel_rbf,num_dims=N) # N is the number of neurons
+wp = models.WishartGammaProcess(kernel=kernel_rbf,nu=2,V=jnp.eye(N))
 
 # Likelihood model
 likelihood = models.NormalConditionalLikelihood()
+
+with numpyro.handlers.seed(rng_seed=seed):
+    mu = gp.sample(x)
+    sigma = wp.sample(x)
+    y = jnp.stack([
+        likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(K) 
+    ]) # K is the number of trials
+
 ```
 
 
@@ -73,7 +81,7 @@ Now we are ready to fit the model to data and infer posterior distributions over
 ```python
 # Given
 # -----
-# x : ndarray, (num_conditions x num_variables), .
+# x : ndarray, (num_conditions x num_variables), stimulus conditions.
 # y : ndarray, (num_trials x num_conditions x num_neurons), neural firing rates across C conditions repeated for K trials.
 
 # Infer a posterior over neural means and covariances per condition.
@@ -101,7 +109,21 @@ We can sample from the inferred posterior, compute likelihoods and summary stati
 # Posterior distribution
 posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
 
-# TODO: ADD OTHER EXAMPLES
+# Sample from the posterior
+with numpyro.handlers.seed(rng_seed=seed):
+    mu_hat, sigma_hat, F_hat = posterior.sample(x)
+
+# Evaluate posterior mode
+with numpyro.handlers.seed(rng_seed=seed):
+    mu_hat, sigma_hat, F_hat = posterior.mode(x)
+
+# Evaluate the function derivative of the posterior mode 
+with numpyro.handlers.seed(rng_seed=seed):
+    mu_prime, sigma_prime = posterior.derivative(x)
+
+# For the Poisson model, compute summary statistics (such as mean firing rate)
+with numpyro.handlers.seed(rng_seed=seed):
+    mu_hat = posterior.mean_stat(lambda x: x, x)
 ```
 
 
@@ -111,7 +133,9 @@ Since we use GP and WP as underlying models it's very easy to sample means and c
 # Given
 # -----
 # X_test : ndarray, (num_test_conditions x num_variables), test data from first network.
-# 
 
+# Interpolate covariances in unseen test conditions
+with numpyro.handlers.seed(rng_seed=seed):
+    mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
 ```
 
