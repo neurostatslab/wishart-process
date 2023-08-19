@@ -66,13 +66,13 @@ wp = models.WishartGammaProcess(kernel=kernel_rbf,nu=2,V=jnp.eye(N))
 # Likelihood model
 likelihood = models.NormalConditionalLikelihood()
 
+# Sample from the generative model and create synthetic dataset
 with numpyro.handlers.seed(rng_seed=seed):
     mu = gp.sample(x)
     sigma = wp.sample(x)
     y = jnp.stack([
         likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(K) 
     ]) # K is the number of trials
-
 ```
 
 
