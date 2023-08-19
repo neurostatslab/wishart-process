@@ -1,6 +1,6 @@
 # Estimating Noise Correlations in Neural Populations with Wishart Processes
 
-![github-schematic](https://github.com/neurostatslab/wishart-process/assets/5959554/e628854c-ff14-46c8-95a9-3c1c12373daa)
+![Estimating Noise Correlations in Neural Populations with Wishart Processes](https://github.com/neurostatslab/wishart-process/assets/5959554/e628854c-ff14-46c8-95a9-3c1c12373daa)
 
 The signaling capacity of a neural population depends on the scale and orientation of its covariance across trials. Estimating this ``noise'' covariance is challenging---a recording of $N$ neurons has on the order of $N^2$ unknown parameters---and is thought to require a large number of stereotyped trials.
 
