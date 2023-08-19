@@ -5,8 +5,8 @@ load: False
 dataset_params:
   name: GPWPLoader
   D: 100 # dimension/number of neurons
-  M: 80 # number of conditions
-  N: 40 # number of trials per condition
+  M: 30 # number of conditions
+  N: 10 # number of trials per condition
   
   scale_type: diag
   # rank: 2
@@ -27,7 +27,7 @@ dataset_params:
       sigma: 1.
       normalizer: 360
 
-  wp_sample_diag: .1
+  wp_sample_diag: 1.
 
   wp_kernel_diag: 0.001
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
