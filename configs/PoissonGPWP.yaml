@@ -16,7 +16,7 @@ dataset_params:
 
   seed: 1 # generative seed (can be different from inference seed)
 
-  prior: WishartGammaProcess
+  prior: WishartLRDProcess
   nu: 4 # degrees of freedom for the generative model
   
   gp_kernel_diag: 0.1
@@ -42,7 +42,7 @@ dataset_params:
 model_params:
   seed: 0 # inference seed
 
-  prior: WishartGammaProcess
+  prior: WishartLRDProcess
   nu: 4 # degrees of freedom for the inference model
 
   gp_kernel_diag: 0.1

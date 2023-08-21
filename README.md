@@ -61,7 +61,7 @@ kernel_rbf = lambda x, y: jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma**2)))
 
 # Prior models
 gp = models.GaussianProcess(kernel=kernel_rbf,num_dims=N) # N is the number of neurons
-wp = models.WishartGammaProcess(kernel=kernel_rbf,nu=2,V=jnp.eye(N))
+wp = models.WishartLRDProcess(kernel=kernel_rbf,nu=2,V=jnp.eye(N))
 
 # Likelihood model
 likelihood = models.NormalConditionalLikelihood()

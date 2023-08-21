@@ -240,7 +240,7 @@ class PoissonGPWPLoader():
         diag_scale = params['wp_sample_diag'] if 'wp_sample_diag' in params else 1e-1
 
         gp = models.GaussianProcess(kernel=gp_kernel,num_dims=params['D'])
-        wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V,diag_scale=diag_scale)
+        wp = models.WishartProcess(kernel=wp_kernel,P=params['nu'],V=V,diag_scale=diag_scale)
 
         # %% Likelihood
         likelihood = eval('models.'+params['likelihood'])(params['D'])
@@ -291,7 +291,7 @@ class GPWPLoader():
         diag_scale = params['wp_sample_diag'] if 'wp_sample_diag' in params else 1e-1
 
         gp = models.GaussianProcess(kernel=gp_kernel,num_dims=params['D'])
-        wp = models.WishartProcess(kernel=wp_kernel,nu=params['nu'],V=V,diag_scale=diag_scale)
+        wp = models.WishartProcess(kernel=wp_kernel,P=params['nu'],V=V,diag_scale=diag_scale)
 
         # %% Likelihood
         likelihood = eval('models.'+params['likelihood'])(params['D'])

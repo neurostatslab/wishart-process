@@ -110,7 +110,7 @@ class WishartProcess:
         return LPF
 
 # %%
-class WishartGammaProcess:
+class WishartLRDProcess:
     def __init__(self, kernel, nu, V, optimize_L=False, diag_scale=1e-1):
         self.kernel = kernel
         self.nu = nu

@@ -33,7 +33,7 @@ kernel_gp = lambda x, y: 1e1*(1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*si
 kernel_wp = lambda x, y: 1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_c**2))
 
 gp = models.GaussianProcess(kernel=kernel_gp,num_dims=D)
-wp = models.WishartProcess(kernel=kernel_wp,nu=D+1,V=1e-2*jnp.eye(D))
+wp = models.WishartProcess(kernel=kernel_wp,P=D+1,V=1e-2*jnp.eye(D))
 
 # Likelihood
 likelihood = models.NormalConditionalLikelihood()
