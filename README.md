@@ -9,11 +9,13 @@ This code package introduces a generative model based on Gaussian and Wishart pr
 See **[our preprint](https://arxiv.org/abs/2308.11824)** for further details:
 
 ```
-@misc{Nejatbakhsh2023,
-    Author = {Amin Nejatbakhsh and Isabel Garon and Alex H Williams},
-    Title = {Estimating Noise Correlations in Neural Populations with Wishart Processes},
-    Year = {2023},
-    Eprint = {arXiv:2308.11824},
+@misc{nejatbakhsh2023estimating,
+      title={Estimating Noise Correlations in Neural Populations with Wishart Processes}, 
+      author={Amin Nejatbakhsh and Isabel Garon and Alex H Williams},
+      year={2023},
+      eprint={2308.11824},
+      archivePrefix={arXiv},
+      primaryClass={stat.AP}
 }
 ```
 
