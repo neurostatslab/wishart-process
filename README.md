@@ -19,7 +19,7 @@ See **[our preprint](https://arxiv.org/abs/2308.11824)** for further details:
 }
 ```
 
-**Note:** This research code remains a work-in-progress to some extent. It could use more documentation and examples. Please use at your own risk and reach out to us (nejatbakhsh.amin@gmail.com) if you have questions.
+**Note:** This research code remains a work-in-progress to some extent. It could use more documentation and examples. Please use at your own risk and reach out to us (anejatbakhsh@flatironinstitute.org) if you have questions.
 
 ## A short and preliminary guide
 
