@@ -51,21 +51,31 @@ Since the code is preliminary, you will be able to use `git pull` to get updates
 We start by creating an instance of our prior and likelihood models.
 
 ```python
+# N : integer, number of neurons.
+# K : integer, number of trials.
+# C : integer, number of stimulus conditions.
+# seed : integer: random seed for reproducibility.
+# sigma_m : prior kernel smoothness.
+
 import jax
 from numpyro import optim
 
 import models
 import inference
+import jax.numpy as jnp
+import numpyro
+
+x = jnp.linspace(-1, 1, C) # condition space
 
 # RBF kernel
-kernel_rbf = lambda x, y: jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma**2)))
+kernel_rbf = lambda x, y: jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2))
 
 # Prior models
-gp = models.GaussianProcess(kernel=kernel_rbf,num_dims=N) # N is the number of neurons
-wp = models.WishartLRDProcess(kernel=kernel_rbf,nu=2,V=jnp.eye(N))
+gp = models.GaussianProcess(kernel=kernel_rbf,N=N) # N is the number of neurons
+wp = models.WishartLRDProcess(kernel=kernel_rbf,P=2,V=jnp.eye(N))
 
 # Likelihood model
-likelihood = models.NormalConditionalLikelihood()
+likelihood = models.NormalConditionalLikelihood(N)
 
 # Sample from the generative model and create synthetic dataset
 with numpyro.handlers.seed(rng_seed=seed):
