@@ -6,7 +6,7 @@ The signaling capacity of a neural population depends on the scale and orientati
 
 This code package introduces a generative model based on Gaussian and Wishart processes and develops a mean field variational inference procedure for inferring neural means and covariances given a dataset consisting of condition variables and their corresponding multi-trial neural firing rates. 
 
-See **[our preprint](https://arxiv.org/abs/2308.11824)** for further details:
+See **[our paper](https://openreview.net/forum?id=3ucmcMzCXD)** for further details:
 
 ```
 @inproceedings{
