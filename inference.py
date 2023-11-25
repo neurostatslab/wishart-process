@@ -66,3 +66,12 @@ class VariationalNormal(Variational):
     def mode(self):
         F_mean, G_mean = self.posterior['F_auto_loc'], self.posterior['G_auto_loc']
         return F_mean, G_mean
+    
+    def log_prob(self,F=None,G=None):
+        F_mean, G_mean = self.posterior['F_auto_loc'], self.posterior['G_auto_loc']
+        F_scale, G_scale = self.posterior['F_auto_scale'], self.posterior['G_auto_scale']
+        
+        log_pf = dist.Normal(F_mean,F_scale).log_prob(F).sum(0).sum(0) if F is not None else None
+        log_pg = dist.Normal(G_mean,G_scale).log_prob(G).sum(0).sum(0) if G is not None else None
+        
+        return log_pf, log_pg

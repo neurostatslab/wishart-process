@@ -5,20 +5,20 @@ load: False
 dataset_params:
   name: GPWPLoader
   D: 100 # dimension/number of neurons
-  M: 30 # number of conditions
+  M: 40 # number of conditions
   N: 10 # number of trials per condition
   
-  scale_type: diag
-  # rank: 2
-  epsilon: 1. #.1 # scale matrix is epsilon*np.eye(D)
+  scale_type: exp_decay_eig
+  rank: 2
+  epsilon: 10. #.1 # scale matrix is epsilon*np.eye(D)
 
   train_trial_prop: .8 # proportion of training and testing trials per condition
   train_condition_prop: 1. # proportion of training and testing conditions
 
-  seed: 0 # generative seed (can be different from inference seed)
+  seed: 1 # generative seed (can be different from inference seed)
 
   prior: WishartProcess
-  nu: 4 # degrees of freedom for the generative model
+  nu: 2 # degrees of freedom for the generative model
   
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
@@ -33,7 +33,7 @@ dataset_params:
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
       scale: 1
-      sigma: 3. # kernel spread
+      sigma: 1. # kernel spread
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood
@@ -42,8 +42,8 @@ dataset_params:
 # ================
 model_params:
   prior: WishartProcess
-  seed: 1 # inference seed
-  nu: 4 # degrees of freedom for the inference model
+  seed: 0 # inference seed
+  nu: 2 # degrees of freedom for the inference model
 
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
@@ -52,14 +52,14 @@ model_params:
       sigma: 1.
       normalizer: 360
 
-  wp_sample_diag: .1
+  wp_sample_diag: 1.
   
   optimize_L: True
   wp_kernel_diag: 0.001
   wp_kernel: # infernce wishart process kernel parameters
     - type: periodic      
       scale: 1
-      sigma: 3.
+      sigma: 1.
       normalizer: 360
 
   likelihood: NormalConditionalLikelihood # likelihood model
