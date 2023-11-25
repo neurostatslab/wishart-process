@@ -6,19 +6,20 @@ The signaling capacity of a neural population depends on the scale and orientati
 
 This code package introduces a generative model based on Gaussian and Wishart processes and develops a mean field variational inference procedure for inferring neural means and covariances given a dataset consisting of condition variables and their corresponding multi-trial neural firing rates. 
 
-The conference paper **([Neurips '23](LINK))** describes the approach
+See **[our paper](https://openreview.net/forum?id=3ucmcMzCXD)** for further details:
 
 ```
-@inproceedings{wishart_process,
-  author = {Amin Nejatbakhsh and Isabel Garon and Alex Williams},
-  title = {},
-  year = {2023},
-  booktitle = {Estimating Noise Correlations in Neural Populations with Wishart Processes},
-  volume = {},
+@inproceedings{
+      nejatbakhsh2023estimating,
+      title={Estimating Noise Correlations Across Continuous Conditions With Wishart Processes},
+      author={Amin Nejatbakhsh and Isabel Garon and Alex H Williams},
+      booktitle={Thirty-seventh Conference on Neural Information Processing Systems},
+      year={2023},
+      url={https://openreview.net/forum?id=3ucmcMzCXD}
 }
 ```
 
-**Note:** This research code remains a work-in-progress to some extent. It could use more documentation and examples. Please use at your own risk and reach out to us (nejatbakhsh.amin@gmail.com) if you have questions.
+**Note:** This research code remains a work-in-progress to some extent. It could use more documentation and examples. Please use at your own risk and reach out to us (anejatbakhsh@flatironinstitute.org) if you have questions.
 
 ## A short and preliminary guide
 
