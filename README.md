@@ -54,8 +54,8 @@ We start by creating an instance of our prior and likelihood models.
 # N : integer, number of neurons.
 # K : integer, number of trials.
 # C : integer, number of stimulus conditions.
-# seed : integer: random seed for reproducibility.
-# sigma_m : prior kernel smoothness.
+# seed : integer, random seed for reproducibility.
+# sigma_m : float, prior kernel smoothness.
 
 import jax
 from numpyro import optim
