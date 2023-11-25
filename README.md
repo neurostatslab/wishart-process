@@ -51,11 +51,15 @@ Since the code is preliminary, you will be able to use `git pull` to get updates
 We start by creating an instance of our prior and likelihood models.
 
 ```python
+# Given
+# -----
 # N : integer, number of neurons.
 # K : integer, number of trials.
 # C : integer, number of stimulus conditions.
 # seed : integer, random seed for reproducibility.
 # sigma_m : float, prior kernel smoothness.
+
+# Create instances of prior and likelihood distributions and generate some synthetic data.
 
 import jax
 from numpyro import optim
