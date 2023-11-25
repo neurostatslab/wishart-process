@@ -13,12 +13,12 @@ from jax import vmap
 
 # %%
 class WishartProcess:
-    def __init__(self, kernel, nu, V, optimize_L=False, diag_scale=1e-1):
+    def __init__(self, kernel, P, V, optimize_L=False, diag_scale=1e-1):
         self.kernel = kernel
-        self.nu = nu
-        self.num_dims = V.shape[0]
-        # Wishart mean is V/nu
-        self.L = jnp.linalg.cholesky(V/nu)
+        self.P = P
+        self.N = V.shape[0]
+        # Wishart mean is V/P
+        self.L = jnp.linalg.cholesky(V/P)
         self.optimize_L = optimize_L
         self.diag_scale=diag_scale
 
@@ -27,21 +27,21 @@ class WishartProcess:
 
     def f2sigma(self, F, L=None):
         if L is None: L = self.L
-        diag = self.diag_scale*jnp.eye(self.num_dims)[:,:,None]
+        diag = self.diag_scale*jnp.eye(self.N)[:,:,None]
         fft = jnp.einsum('abn,cbn->acn',F[:,:-1],F[:,:-1]) + diag
         afft = jnp.einsum('ab,bcn->acn',L,fft) 
         sigma = jnp.einsum('abn,bc->nac',afft,L.T) 
         return sigma
 
     def sample(self, x):
-        N = x.shape[0]
+        C = x.shape[0]
         L = numpyro.param('L', self.L) if self.optimize_L else self.L
 
         c_f = self.evaluate_kernel(x,x)
 
         F = numpyro.sample(
-            'F',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f),
-            sample_shape=(self.num_dims,self.nu)
+            'F',dist.MultivariateNormal(jnp.zeros(C),covariance_matrix=c_f),
+            sample_shape=(self.N,self.P)
         )
         self.F = F
 
@@ -104,19 +104,19 @@ class WishartProcess:
     
     def log_prob(self, x, F):
         # TODO: input to this fn must be sigma, not F
-        N = x.shape[0]
+        C = x.shape[0]
         c_f = self.evaluate_kernel(x,x)
-        LPF = dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f).log_prob(F)
+        LPF = dist.MultivariateNormal(jnp.zeros(C),covariance_matrix=c_f).log_prob(F)
         return LPF
 
 # %%
 class WishartLRDProcess:
-    def __init__(self, kernel, nu, V, optimize_L=False, diag_scale=1e-1):
+    def __init__(self, kernel, P, V, optimize_L=False, diag_scale=1e-1):
         self.kernel = kernel
-        self.nu = nu
-        self.num_dims = V.shape[0]
+        self.P = P
+        self.N = V.shape[0]
         # Wishart mean is V/nu
-        self.L = jnp.linalg.cholesky(V/max(nu,1))
+        self.L = jnp.linalg.cholesky(V/max(P,1))
         self.optimize_L = optimize_L
         self.diag_scale=diag_scale
 
@@ -133,14 +133,14 @@ class WishartLRDProcess:
         return sigma
 
     def sample(self, x):
-        N = x.shape[0]
+        C = x.shape[0]
         L = numpyro.param('L', self.L) if self.optimize_L else self.L
 
         c_f = self.evaluate_kernel(x,x)
 
         F = numpyro.sample(
-            'F',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f),
-            sample_shape=(self.num_dims,self.nu+1)
+            'F',dist.MultivariateNormal(jnp.zeros(C),covariance_matrix=c_f),
+            sample_shape=(self.N,self.P+1)
         )
         self.F = F
 
@@ -204,16 +204,16 @@ class WishartLRDProcess:
     
     def log_prob(self, x, F):
         # TODO: input to this fn must be sigma, not F
-        N = x.shape[0]
+        C = x.shape[0]
         c_f = self.evaluate_kernel(x,x)
-        LPF = dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_f).log_prob(F)
+        LPF = dist.MultivariateNormal(jnp.zeros(C),covariance_matrix=c_f).log_prob(F)
         return LPF
     
 # %%
 class GaussianProcess:
-    def __init__(self, kernel, num_dims):
+    def __init__(self, kernel, N):
         self.kernel = kernel
-        self.num_dims = num_dims
+        self.N = N
 
 
     def evaluate_kernel(self, xs, ys):
@@ -221,11 +221,11 @@ class GaussianProcess:
 
 
     def sample(self, x):
-        N = x.shape[0]
+        C = x.shape[0]
         c_g = self.evaluate_kernel(x,x)
         G = numpyro.sample(
-            'G',dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_g),
-            sample_shape=(self.num_dims,1)
+            'G',dist.MultivariateNormal(jnp.zeros(C),covariance_matrix=c_g),
+            sample_shape=(self.N,1)
         ).squeeze().T
         return G
     
@@ -274,31 +274,31 @@ class GaussianProcess:
         return grad
     
     def log_prob(self, x, G):
-        N = x.shape[0]
+        C = x.shape[0]
         c_g = self.evaluate_kernel(x,x)
-        LPG = dist.MultivariateNormal(jnp.zeros((N)),covariance_matrix=c_g).log_prob(G)
+        LPG = dist.MultivariateNormal(jnp.zeros(C),covariance_matrix=c_g).log_prob(G)
         return LPG
 
 # %% 
 class NeuralTuningProcess:
-    def __init__(self, num_dims, spread, amp):
-        self.num_dims = num_dims
+    def __init__(self, N, spread, amp):
+        self.N = N
         self.spread = spread
         self.amp = amp
 
     def sample(self, x):
-        # generate num_dims random phases
+        # generate N random phases
         # generate cosine response curves with the given spread
-        p = numpyro.sample('phase', dist.Uniform(),sample_shape=(self.num_dims,))
-        a = numpyro.sample('amp', dist.Uniform(low=.5,high=1.5),sample_shape=(self.num_dims,))
+        p = numpyro.sample('phase', dist.Uniform(),sample_shape=(self.N,))
+        a = numpyro.sample('amp', dist.Uniform(low=.5,high=1.5),sample_shape=(self.N,))
         return self.amp*a*(1+jnp.cos(((jnp.pi*x[:,None]/360.)-(p[None])*jnp.pi)/self.spread))
         
 
 
 # %%
 class NormalConditionalLikelihood:
-    def __init__(self,D):
-        self.D = D
+    def __init__(self,N):
+        self.N = N
 
     def sample(self,mu,sigma,ind=None,y=None):
         Y = numpyro.sample(
@@ -313,12 +313,12 @@ class NormalConditionalLikelihood:
     
 # %%
 class PoissonConditionalLikelihood:
-    def __init__(self,D):
+    def __init__(self,N):
         self.gain_fn = lambda x: jax.nn.softplus(x)
         self.gain_inverse_fn = lambda x: jnp.log(jnp.exp(x)-1)
 
-        self.D = D
-        self.rate = jnp.ones(D)
+        self.N = N
+        self.rate = jnp.ones(N)
     
     def initialize_rate(self,y):
         self.rate = self.gain_inverse_fn(y.mean(0).mean(0))

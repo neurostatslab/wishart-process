@@ -156,15 +156,15 @@ class CovarianceModel:
 # %%
 def get_scale_matrix(params):
     if params['scale_type'] == 'low_rank':
-        return params['epsilon']*(CovarianceModel.low_rank(params['D'],params['rank'],seed=params['seed'],g=1e0)+\
-                1e-1*params['epsilon']*jnp.eye(params['D']))
+        return params['epsilon']*(CovarianceModel.low_rank(params['N'],params['rank'],seed=params['seed'],g=1e0)+\
+                1e-1*params['epsilon']*jnp.eye(params['N']))
     if params['scale_type'] == 'multi_region':
         return params['epsilon']*(CovarianceModel.multi_region(
-                params['D'],C=params['C'],seed=params['seed'],g=1e0
-            ) + 1e0*jnp.eye(params['D']))
+                params['N'],C=params['C'],seed=params['seed'],g=1e0
+            ) + 1e0*jnp.eye(params['N']))
     if params['scale_type'] == 'diag':
-        return params['epsilon']*jnp.eye(params['D'])
+        return params['epsilon']*jnp.eye(params['N'])
     if params['scale_type'] == 'exp_decay_eig':
         return params['epsilon']*CovarianceModel.exp_decay_eig(
-            params['D'],seed=params['seed']
+            params['N'],seed=params['seed']
         )

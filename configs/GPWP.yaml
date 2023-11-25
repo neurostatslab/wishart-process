@@ -4,9 +4,9 @@ load: False
 
 dataset_params:
   name: GPWPLoader
-  D: 100 # dimension/number of neurons
-  M: 40 # number of conditions
-  N: 10 # number of trials per condition
+  N: 100 # dimension/number of neurons
+  C: 40 # number of conditions
+  K: 10 # number of trials per condition
   
   scale_type: exp_decay_eig
   rank: 2
@@ -18,7 +18,7 @@ dataset_params:
   seed: 1 # generative seed (can be different from inference seed)
 
   prior: WishartProcess
-  nu: 2 # degrees of freedom for the generative model
+  P: 2 # degrees of freedom for the generative model
   
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
@@ -43,7 +43,7 @@ dataset_params:
 model_params:
   prior: WishartProcess
   seed: 0 # inference seed
-  nu: 2 # degrees of freedom for the inference model
+  P: 2 # degrees of freedom for the inference model
 
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters

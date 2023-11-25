@@ -17,6 +17,7 @@ from numpyro import optim
 import evaluation
 import numpyro
 import loader
+import utils
 
 import argparse
 import yaml
@@ -51,37 +52,37 @@ if __name__ == '__main__':
     mu_empirical = y.mean(0)
     
     # %%
-    gp_kernel = loader.get_kernel(model_params['gp_kernel'],model_params['gp_kernel_diag'])
-    D = y.shape[2]
+    gp_kernel = utils.get_kernel(model_params['gp_kernel'],model_params['gp_kernel_diag'])
+    N = y.shape[2]
     
     print('Trials, Conditions, Neurons: ', y.shape)
     
-    gp = models.GaussianProcess(kernel=gp_kernel,num_dims=D)
+    gp = models.GaussianProcess(kernel=gp_kernel,N=N)
 
     prec = True if 'Precision' in model_params['likelihood']  else False
 
     empirical = jnp.cov((y - y.mean(0)[None]).reshape(y.shape[0]*y.shape[1],y.shape[2]).T)
     if prec: empirical = jnp.linalg.inv(empirical)
 
-    wp_kernel = loader.get_kernel(model_params['wp_kernel'],model_params['wp_kernel_diag'])
+    wp_kernel = utils.get_kernel(model_params['wp_kernel'],model_params['wp_kernel_diag'])
 
-    nu = model_params['nu'] if 'nu' in model_params.keys() else model_params['nu_scale']*D
+    P = model_params['P'] if 'P' in model_params.keys() else model_params['P_scale']*N
     optimize_L = True if 'optimize_L' in model_params.keys() and model_params['optimize_L'] else False
 
     wp_sample_diag = model_params['wp_sample_diag'] if 'wp_sample_diag' in model_params else 1e0
-    # TODO: Wishart vs. WishartGamma should be a parameter
+    # TODO: Wishart vs. WishartLRD should be a parameter
 
-    likelihood = eval('models.'+model_params['likelihood'])(D)
+    likelihood = eval('models.'+model_params['likelihood'])(N)
 
     if model_params['likelihood'] == 'PoissonConditionalLikelihood':
         # Fix this, for real data there's no dataloader.V
         V = dataloader.V
     if model_params['likelihood'] == 'NormalConditionalLikelihood':
-        V = empirical+wp_sample_diag*jnp.eye(D)
+        V = empirical+wp_sample_diag*jnp.eye(N)
     
     
     wp = eval('models.'+model_params['prior'])(
-        kernel=wp_kernel,nu=nu,
+        kernel=wp_kernel,P=P,
         V=V, optimize_L=optimize_L,
         diag_scale=wp_sample_diag
     )
@@ -300,7 +301,7 @@ if __name__ == '__main__':
         try:
             with numpyro.handlers.seed(rng_seed=seed):
                 if len(x_test) > 0:
-                    for i in range(3):
+                    for i in range(2):
                         mu_test_hat, sigma_test_hat, F_test_hat = posterior.sample(x_test)
                         visualizations.visualize_pc(
                             mu_test_hat[:,None],sigma_test_hat,

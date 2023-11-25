@@ -4,9 +4,9 @@ load: False
 
 dataset_params:
   name: NeuralTuningProcessLoader
-  D: 10 # dimension/number of neurons
-  M: 20 # number of conditions
-  N: 100 # number of trials per condition
+  N: 10 # dimension/Pmber of neurons
+  C: 20 # Pmber of conditions
+  K: 100 # Pmber of trials per condition
   epsilon: 0.1 # scale matrix is epsilon*np.eye(D)
   spread: 0.5 # spread of tuning functions, in radians
   amp: 5 # amplitude of the tuning functions (no units)
@@ -15,7 +15,7 @@ dataset_params:
 
   seed: 0 # generative seed (can be different from inference seed)
 
-  nu: 20 # degrees of freedom for the generative model
+  P: 20 # degrees of freedom for the generative model
   wp_kernel_diag: 0.001 # diagonal term added for well-conditioning the kernel
   wp_kernel: # generative wishart process parameters (a list with one kernel per condition dimension)
     - type: periodic # periodic/RBF are implemented
@@ -27,7 +27,7 @@ dataset_params:
 # ================
 model_params:
   seed: 0 # inference seed
-  nu: 20 # degrees of freedom for the inference model
+  P: 20 # degrees of freedom for the inference model
 
   gp_kernel_diag: 0.001
   gp_kernel: # inference gaussian process kernel parameters
@@ -47,8 +47,8 @@ model_params:
 # ====================
 variational_params:
   guide: VariationalNormal # VariationalNormal/VariationalDelta
-  num_particles: 1 # number of importance weighting particles
-  n_iter: 20000 # number of optimization iterations
+  Pm_particles: 1 # Pmber of importance weighting particles
+  n_iter: 20000 # Pmber of optimization iterations
 
   optimizer:
     type: Adam # Adam/SGD

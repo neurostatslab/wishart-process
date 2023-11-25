@@ -3,7 +3,6 @@
 @author: Amin
 """
 
-from scipy.stats import multivariate_normal
 import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA
@@ -22,8 +21,7 @@ matplotlib_axes_logger.setLevel('ERROR')
 
 # %%
 def visualize_pc(
-        means,covs,pc=None,title_str='',fontsize=9,dotsize=30,K=None,
-        linewidth=2,std=3,lim=None,save=False,file=None
+        means,covs,pc=None,title_str='',fontsize=9,dotsize=30,K=None,linewidth=2,std=3,lim=None,save=False,file=None
     ):
     '''Visualize point clouds and atlases learned from them
     '''
@@ -60,9 +58,6 @@ def visualize_pc(
             linewidth=linewidth
         )
 
-    
-    
-
 
     for j in range(len(means)):
         plt.scatter(
@@ -98,7 +93,9 @@ def visualize_pc(
         plt.show()
 
 # %%
-def plot_loss(loss,error=None,xlabel='',ylabel='',titlestr='',colors=None,legends=None,fontsize=15,linewidth=2,save=False,file=None):
+def plot_loss(
+        loss,error=None,xlabel='',ylabel='',titlestr='',colors=None,legends=None,fontsize=15,linewidth=2,save=False,file=None
+    ):
     if colors is None: colors = plt.cm.hsv(np.linspace(0,1,len(legends)+1)[0:-1])[:,0:3]
 
     plt.figure(figsize=(10,3))
@@ -131,7 +128,9 @@ def plot_loss(loss,error=None,xlabel='',ylabel='',titlestr='',colors=None,legend
 
 
 # %%
-def plot_box(performance,titlestr='',fontsize=10,save=False,file=None):
+def plot_box(
+        performance,titlestr='',fontsize=10,save=False,file=None
+    ):
 
     plt.boxplot(performance.values())
     plt.xticks(np.arange(1,1+len(performance)),list(performance.keys()),fontsize=fontsize)
@@ -146,8 +145,9 @@ def plot_box(performance,titlestr='',fontsize=10,save=False,file=None):
         plt.show()
 
 # %%
-
-def plot_tuning(x,y,lw=2,titlestr='',fontsize=10,save=False,file=None):
+def plot_tuning(
+        x,y,lw=2,titlestr='',fontsize=10,save=False,file=None
+    ):
     plt.plot(x,y,lw=lw)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
@@ -160,7 +160,6 @@ def plot_tuning(x,y,lw=2,titlestr='',fontsize=10,save=False,file=None):
         plt.close('all')
     else:
         plt.show()
-
 
 
 # %%
@@ -189,7 +188,9 @@ def draw_ellipse(
 
 
 # %%
-def visualize_covariances(cov,titlestr='',fontsize=10,save=False,file=None):
+def visualize_covariances(
+        cov,titlestr='',fontsize=10,save=False,file=None
+    ):
     fig, axes = plt.subplots(
         nrows=cov.shape[0], ncols=cov.shape[1],
         figsize=(3*cov.shape[1], 3*cov.shape[0])
@@ -245,5 +246,3 @@ def plot_torus(phi,theta,R0=2,a=.3,save=False,file=None):
         plt.close('all')
     else:
         plt.show()
-
-

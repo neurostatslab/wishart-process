@@ -4,9 +4,9 @@ load: False
 
 dataset_params:
   name: PoissonGPWPLoader
-  D: 20 # dimension/number of neurons
-  M: 30 # number of conditions
-  N: 50 # number of trials per condition
+  N: 20 # dimension/Pmber of neurons
+  C: 30 # Pmber of conditions
+  K: 50 # Pmber of trials per condition
   
   scale_type: exp_decay_eig
   epsilon: .01 #.1 # scale matrix is epsilon*np.eye(D)
@@ -17,7 +17,7 @@ dataset_params:
   seed: 1 # generative seed (can be different from inference seed)
 
   prior: WishartLRDProcess
-  nu: 4 # degrees of freedom for the generative model
+  P: 4 # degrees of freedom for the generative model
   
   gp_kernel_diag: 0.1
   gp_kernel: # inference gaussian process kernel parameters
@@ -43,7 +43,7 @@ model_params:
   seed: 0 # inference seed
 
   prior: WishartLRDProcess
-  nu: 4 # degrees of freedom for the inference model
+  P: 4 # degrees of freedom for the inference model
 
   gp_kernel_diag: 0.1
   gp_kernel: # inference gaussian process kernel parameters
@@ -67,8 +67,8 @@ model_params:
 # ====================
 variational_params:
   guide: VariationalDelta # VariationalNormal/VariationalDelta
-  num_particles: 1 # number of importance weighting particles
-  n_iter: 50000 # number of optimization iterations
+  Pm_particles: 1 # Pmber of importance weighting particles
+  n_iter: 50000 # Pmber of optimization iterations
 
   optimizer:
     type: Adam # Adam/SGD

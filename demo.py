@@ -3,7 +3,6 @@
 """
 @author: Amin
 """
-
 import visualizations
 import models
 import inference
@@ -13,49 +12,48 @@ from numpyro import optim
 import evaluation
 import numpyro
 
-# %load_ext autoreload
-# %autoreload 2
-
 # %% Make a fake dataset
-N = 20  # time points
-D = 2
-seed = 1
-num_samples = 20
+C = 20 # conditions (time points)
+N = 2  # number of neurons (dimensions) 
+K = 20 # number of trials
 
-rng = [-10,10]
+data_seed = 1 # seed for generating data
 
-x = jnp.linspace(rng[0], rng[1], N)
-sigma_m = 10.
-sigma_c = 10.
+rng = [-10,10] # range of input conditions
 
-# Prior
+x = jnp.linspace(rng[0], rng[1], C)
+sigma_m = 10. # smoothness of GP
+sigma_c = 10. # smoothness of WP
+
+# Prior distribution (GP and WP)
 kernel_gp = lambda x, y: 1e1*(1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2)))
 kernel_wp = lambda x, y: 1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_c**2))
 
-gp = models.GaussianProcess(kernel=kernel_gp,num_dims=D)
-wp = models.WishartProcess(kernel=kernel_wp,P=D+1,V=1e-2*jnp.eye(D))
+gp = models.GaussianProcess(kernel=kernel_gp,N=N)
+wp = models.WishartProcess(kernel=kernel_wp,P=N+1,V=1e-2*jnp.eye(N))
 
-# Likelihood
-likelihood = models.NormalConditionalLikelihood()
+# Likelihood model (Multivariate Normal)
+likelihood = models.NormalConditionalLikelihood(N)
 
-with numpyro.handlers.seed(rng_seed=seed):
+with numpyro.handlers.seed(rng_seed=data_seed):
     mu = gp.sample(x)
     sigma = wp.sample(x)
-    data = [likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(num_samples)]
+    data = [likelihood.sample(mu,sigma,ind=jnp.arange(len(mu))) for i in range(K)]
     y = jnp.stack(data)
 
 visualizations.visualize_pc(
     mu[:,None],sigma,pc=y.reshape(y.shape[0]*y.shape[1],-1)
 )
 
-# %% Joint
+# %% Joint distribution
 joint = models.JointGaussianWishartProcess(gp,wp,likelihood) 
 
-# %% Inference
+# %% Inference (Mean Field Variational)
+inference_seed = 2
 varfam = inference.VariationalNormal(joint.model)
 
 adam = optim.Adam(1e-1)
-key = jax.random.PRNGKey(seed)
+key = jax.random.PRNGKey(inference_seed)
 varfam.infer(adam,x,y,n_iter=20000,key=key)
 joint.update_params(varfam.posterior)
 
@@ -64,16 +62,15 @@ visualizations.plot_loss(
     [varfam.losses],xlabel='Iteration',ylabel='ELBO',titlestr='Training Loss',colors=['k'],
 )
 
-# %%
+# %% Sampling from the posterior over means and covariances
 posterior = models.NormalGaussianWishartPosterior(joint,varfam,x)
-with numpyro.handlers.seed(rng_seed=seed):
+with numpyro.handlers.seed(rng_seed=inference_seed):
     mu_hat, sigma_hat, F_hat = posterior.sample(x)
 
 visualizations.visualize_pc(
     mu_hat[:,None],sigma_hat,pc=y.reshape(y.shape[0]*y.shape[1],-1)
 )
-# %% Evaluation
-
+# %% Evaluation and comparison with other methods
 compared = evaluation.compare(y)
 compared['wishart'] = sigma_hat.transpose(1,2,0)
 performance = evaluation.evaluate(compared,sigma.transpose(1,2,0))
