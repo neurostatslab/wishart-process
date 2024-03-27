@@ -72,7 +72,7 @@ import numpyro
 x = jnp.linspace(-1, 1, C) # condition space
 
 # RBF kernel
-kernel_rbf = lambda x, y: jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2))
+kernel_rbf = lambda x, y: 1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2))
 
 # Prior models
 gp = models.GaussianProcess(kernel=kernel_rbf,N=N) # N is the number of neurons
