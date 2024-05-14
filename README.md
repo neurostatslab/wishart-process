@@ -1,6 +1,6 @@
 # Estimating Noise Correlations in Neural Populations with Wishart Processes
 
-![Estimating Noise Correlations in Neural Populations with Wishart Processes](https://github.com/neurostatslab/wishart-process/assets/5959554/1e49a585-3974-4abe-80cd-e79757e59d90)
+![Estimating Noise Correlations in Neural Populations with Wishart Processes](https://github.com/neurostatslab/wishart-process/assets/5959554/7a1c2a46-1f2c-4107-ab00-906d9344332e)
 
 The signaling capacity of a neural population depends on the scale and orientation of its covariance across trials. Estimating this ''noise'' covariance is challenging---a recording of $N$ neurons has on the order of $N^2$ unknown parameters---and is thought to require a large number of stereotyped trials.
 
@@ -72,7 +72,7 @@ import numpyro
 x = jnp.linspace(-1, 1, C) # condition space
 
 # RBF kernel
-kernel_rbf = lambda x, y: jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2))
+kernel_rbf = lambda x, y: 1e-6*(x==y)+jnp.exp(-jnp.linalg.norm(x-y)**2/(2*sigma_m**2))
 
 # Prior models
 gp = models.GaussianProcess(kernel=kernel_rbf,N=N) # N is the number of neurons
