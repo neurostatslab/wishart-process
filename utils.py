@@ -10,6 +10,9 @@ import jax.numpy as jnp
 import numpy as np
 from scipy.linalg import block_diag
 
+from scipy.stats import rankdata
+from sklearn.metrics import pairwise_distances
+
 # %%
 def get_kernel(params,diag):
     '''Returns the full kernel of multi-dimensional condition spaces
@@ -30,6 +33,45 @@ def _get_kernel(kernel,params):
         return lambda x,y: params['scale']*jnp.exp(-2*(jnp.sin(jnp.pi*jnp.abs(x-y)/params['normalizer'])**2)/(params['sigma']**2))
     if kernel == 'RBF': 
         return lambda x,y: params['scale']*jnp.exp(-(jnp.linalg.norm((x-y)/params['normalizer'])**2)/(2*params['sigma']**2))
+
+# %%
+def split_data_cv(data,props,seeds):
+    # props: train, validation, test
+    # seeds: test, validation
+    # data: y (possibly mu, sigma, F, mu_g, sigma_g)
+
+    assert 'train' in props.keys() and 'test' in props.keys() and 'validation' in props.keys()
+    assert props['train'] + props['test'] + props['validation'] == 1
+    assert 'test' in seeds.keys() and 'validation' in seeds.keys()
+    assert 'y' in data.keys()
+     
+    N,M,D = data['y'].shape
+    
+    trial_indices = jax.random.permutation(
+        jax.random.PRNGKey(seeds['test']),
+        np.arange(N)
+    )
+
+    test_trials = trial_indices[-int(props['test']*N):]
+
+    train_trials = jax.random.choice(
+        jax.random.PRNGKey(seeds['validation']),
+        shape=(int(N*props['train']),),
+        a=trial_indices[:-int(props['test']*N)],
+        replace=False
+    ).sort()
+
+    validation_trials = jnp.setdiff1d(trial_indices[:-int(props['test']*N)],train_trials).tolist()
+
+    out = {
+        'y_train': data['y'][train_trials,...],
+        'y_test': data['y'][test_trials,...],
+        'y_validation': data['y'][validation_trials,...]
+    }
+    
+    return out
+    
+
 
 
 # %%
@@ -86,15 +128,13 @@ def split_data(
 
 
 # %%
-from scipy.stats import rankdata
-from sklearn.metrics import pairwise_distances
-
 def create_adjacency(x):
     idx = rankdata(x, method='dense',axis=0)-1
     dist = pairwise_distances(idx,metric='l1')
     dist[dist != 1] = 0
     return dist
-        
+    
+# %%
 class CovarianceModel:
     @staticmethod
     def low_rank(N,K,seed,g=1):
